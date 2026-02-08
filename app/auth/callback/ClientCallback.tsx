@@ -1,60 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function ClientCallback({
-  code,
-  nextUrl,
-}: {
-  code: string;
-  nextUrl: string;
-}) {
+export default function ClientCallback() {
   const router = useRouter();
-  const [msg, setMsg] = useState("Sto completando il login…");
+  const params = useSearchParams();
 
   useEffect(() => {
     let cancelled = false;
 
-    async function run() {
+    (async () => {
       try {
-        if (!code) {
-          setMsg("❌ Codice mancante. Riprova dal login.");
-          router.replace("/login");
-          return;
+        // Se Supabase ti rimanda con ?code=..., scambiamo il code con la sessione
+        const code = params.get("code");
+
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        } else {
+          // fallback: prova comunque a leggere la sessione
+          await supabase.auth.getSession();
         }
 
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-        if (error) {
-          setMsg("❌ Errore login: " + error.message);
-          router.replace("/login");
-          return;
-        }
-
-        if (!cancelled) {
-          router.replace(nextUrl || "/");
-          router.refresh();
-        }
-      } catch (e: any) {
-        setMsg("❌ Errore inatteso: " + (e?.message ?? "sconosciuto"));
-        router.replace("/login");
+        if (!cancelled) router.replace("/");
+      } catch (e) {
+        // anche se fallisce, non blocchiamo il deploy: mandiamo al login
+        if (!cancelled) router.replace("/login");
       }
-    }
+    })();
 
-    run();
     return () => {
       cancelled = true;
     };
-  }, [code, nextUrl, router]);
+  }, [params, router]);
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-6">
-      <div className="max-w-md w-full rounded-3xl border border-white/10 bg-white/5 p-6 text-center">
-        <div className="text-lg font-extrabold">Auth Callback</div>
-        <div className="mt-2 text-white/70 text-sm">{msg}</div>
-      </div>
-    </main>
+    <div className="min-h-screen grid place-items-center text-white">
+      Accesso in corso…
+    </div>
   );
 }

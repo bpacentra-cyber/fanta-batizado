@@ -1,16 +1,13 @@
 // app/auth/callback/page.tsx
+import { Suspense } from "react";
 import ClientCallback from "./ClientCallback";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
-export default function AuthCallbackPage({
-  searchParams,
-}: {
-  searchParams: { code?: string; next?: string };
-}) {
-  const code = typeof searchParams?.code === "string" ? searchParams.code : "";
-  const nextUrl = typeof searchParams?.next === "string" ? searchParams.next : "/";
-
-  return <ClientCallback code={code} nextUrl={nextUrl} />;
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen grid place-items-center text-white">Redirect…</div>}>
+      <ClientCallback />
+    </Suspense>
+  );
 }
