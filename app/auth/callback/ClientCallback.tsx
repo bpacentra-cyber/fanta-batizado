@@ -20,8 +20,7 @@ export default function ClientCallback({
     async function run() {
       try {
         if (!code) {
-          setMsg("Codice mancante. Riprova il login.");
-          // fallback: torna al login
+          setMsg("❌ Codice mancante. Riprova dal login.");
           router.replace("/login");
           return;
         }
@@ -29,7 +28,7 @@ export default function ClientCallback({
         const { error } = await supabase.auth.exchangeCodeForSession(code);
 
         if (error) {
-          setMsg("Errore login: " + error.message);
+          setMsg("❌ Errore login: " + error.message);
           router.replace("/login");
           return;
         }
@@ -39,13 +38,12 @@ export default function ClientCallback({
           router.refresh();
         }
       } catch (e: any) {
-        setMsg("Errore inatteso: " + (e?.message ?? "sconosciuto"));
+        setMsg("❌ Errore inatteso: " + (e?.message ?? "sconosciuto"));
         router.replace("/login");
       }
     }
 
     run();
-
     return () => {
       cancelled = true;
     };
