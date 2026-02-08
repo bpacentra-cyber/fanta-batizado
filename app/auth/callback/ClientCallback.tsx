@@ -1,51 +1,55 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function ClientCallback() {
+export default function ClientCallback({
+  code,
+  nextUrl,
+}: {
+  code: string;
+  nextUrl: string;
+}) {
   const router = useRouter();
-  const sp = useSearchParams();
   const [msg, setMsg] = useState("Sto completando il login…");
 
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
+    async function run() {
       try {
-        // Supabase OAuth callback: il "code" arriva in querystring
-        const code = sp.get("code");
-
-        // Se non c'è code, porta al login
         if (!code) {
-          if (!cancelled) router.replace("/login");
+          setMsg("Codice mancante. Riprova il login.");
+          // fallback: torna al login
+          router.replace("/login");
           return;
         }
 
-        // Exchange code -> session
-        const { error } = await supabase.auth.exchangeCodeForSession(window.location.href);
-        if (error) throw error;
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-        // Vai in home (o profile)
+        if (error) {
+          setMsg("Errore login: " + error.message);
+          router.replace("/login");
+          return;
+        }
+
         if (!cancelled) {
-          setMsg("Login completato ✅");
-          router.replace("/");
+          router.replace(nextUrl || "/");
+          router.refresh();
         }
       } catch (e: any) {
-        console.error(e);
-        if (!cancelled) {
-          setMsg(`Errore callback: ${e?.message ?? "sconosciuto"}`);
-          // fallback al login
-          router.replace("/login");
-        }
+        setMsg("Errore inatteso: " + (e?.message ?? "sconosciuto"));
+        router.replace("/login");
       }
-    })();
+    }
+
+    run();
 
     return () => {
       cancelled = true;
     };
-  }, [router, sp]);
+  }, [code, nextUrl, router]);
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-6">
