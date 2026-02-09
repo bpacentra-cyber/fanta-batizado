@@ -97,8 +97,7 @@ export default function LoginPage() {
             </h1>
 
             <p className="mt-2 text-white/70 leading-relaxed">
-              Inserisci la tua email. Ti mando un link magico: clicchi e sei
-              dentro. Fine.
+              Vabè ma davvero devo spiegarti come ci si registra? Lo farò comunque, inserisci la tua mail qui sotto e clicca per ricevere il link magico! 
             </p>
 
             <form onSubmit={sendMagicLink} className="mt-6 space-y-3">
@@ -144,7 +143,7 @@ export default function LoginPage() {
           {/* Mini regolamento box */}
           <section className="rounded-[28px] border border-white/10 bg-gradient-to-b from-white/[0.10] to-white/[0.05] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur">
             <h2 className="text-xl font-extrabold tracking-tight">
-              📜 Mini-Regolamento (spoiler)
+              📜 Mini-Regolamento (leggi il regolamento per intero! Non farti prendere dalla pigrizia!)
             </h2>
             <p className="mt-2 text-white/75 leading-relaxed">
               Benvenuto nel gioco che nessuno aveva chiesto… ma che ora nessuno
@@ -153,7 +152,7 @@ export default function LoginPage() {
 
             <div className="mt-4 space-y-2 text-sm text-white/80">
             <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                🗣 <b>Regola #1:</b> non parlate mai del Fanta Batizado.
+                🗣 <b>Regola #1 del FANTA BATIZADO:</b> non parlate mai del Fanta Batizado.
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
                 💰 <b>Budget:</b> 500 Dbr per squadra.
