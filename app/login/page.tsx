@@ -152,6 +152,9 @@ export default function LoginPage() {
             </p>
 
             <div className="mt-4 space-y-2 text-sm text-white/80">
+            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                🗣 <b>Regola #1:</b> non parlate mai del Fanta Batizado.
+              </div>
               <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
                 💰 <b>Budget:</b> 500 Dbr per squadra.
               </div>
@@ -160,9 +163,6 @@ export default function LoginPage() {
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
                 ⚡ <b>Punti:</b> bonus e malus assegnati dall’Admin Supremo.
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                🗣 <b>Regola #1:</b> non parlate mai del Fanta Batizado.
               </div>
             </div>
 
@@ -182,8 +182,8 @@ export default function LoginPage() {
             </div>
 
             <p className="mt-4 text-xs text-white/50">
-              Nota: Entrando accetti che l’Admin abbia sempre ragione. Anche
-              quando non ce l’ha.
+              Nota: Entrando accetti che l’Admin e i founders abbiano sempre ragione. Anche
+              quando non ce l’hanno.
             </p>
           </section>
         </div>
