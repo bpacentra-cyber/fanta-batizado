@@ -1,19 +1,19 @@
 // app/auth/callback/page.tsx
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import ClientCallback from "./ClientCallback";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-6">
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-white/80">
-            Sto completando il login…
+        <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-white/[0.06] p-6 text-center">
+            <div className="text-xl font-extrabold">Auth Callback</div>
+            <div className="mt-3 text-sm text-white/70">Caricamento…</div>
           </div>
-        </main>
+        </div>
       }
     >
       <ClientCallback />

@@ -7,14 +7,14 @@ import { supabase } from "@/lib/supabase";
 export default function ClientCallback() {
   const router = useRouter();
   const sp = useSearchParams();
-  const [status, setStatus] = useState<string>("Sto completando il login...");
+  const [status, setStatus] = useState("Sto completando il login...");
 
   useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
-        // ✅ Caso 1: Supabase manda ?code=... (PKCE)
+        // Caso 1: PKCE (?code=...)
         const code = sp.get("code");
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -26,7 +26,7 @@ export default function ClientCallback() {
           return;
         }
 
-        // ✅ Caso 2: token in hash (implicit flow) -> getSession lo prende
+        // Caso 2: sessione già presente (hash tokens o cookie)
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
 
