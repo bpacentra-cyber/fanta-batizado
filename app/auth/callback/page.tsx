@@ -1,41 +1,22 @@
-"use client";
+// app/auth/callback/page.tsx
+import { Suspense } from "react";
+import ClientCallback from "./ClientCallback";
 
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default function AuthCallbackPage() {
-  const router = useRouter();
-  const params = useSearchParams();
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const code = params.get("code");
-
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-        } else {
-          await supabase.auth.getSession();
-        }
-
-        if (!cancelled) router.replace("/");
-      } catch {
-        if (!cancelled) router.replace("/login");
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [params, router]);
-
   return (
-    <div className="min-h-screen grid place-items-center text-white">
-      Accesso in corso…
-    </div>
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-6">
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-white/80">
+            Sto completando il login…
+          </div>
+        </main>
+      }
+    >
+      <ClientCallback />
+    </Suspense>
   );
 }

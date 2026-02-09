@@ -2,43 +2,23 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 
 export default function ClientCallback() {
   const router = useRouter();
-  const params = useSearchParams();
+  const sp = useSearchParams();
 
   useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        // Se Supabase ti rimanda con ?code=..., scambiamo il code con la sessione
-        const code = params.get("code");
-
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-        } else {
-          // fallback: prova comunque a leggere la sessione
-          await supabase.auth.getSession();
-        }
-
-        if (!cancelled) router.replace("/");
-      } catch (e) {
-        // anche se fallisce, non blocchiamo il deploy: mandiamo al login
-        if (!cancelled) router.replace("/login");
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [params, router]);
+    // Se supabase gestisce già la sessione via redirect, qui basta tornare alla home
+    // o alla pagina profilo.
+    const next = sp.get("next") || "/";
+    router.replace(next);
+  }, [router, sp]);
 
   return (
-    <div className="min-h-screen grid place-items-center text-white">
-      Accesso in corso…
-    </div>
+    <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-6">
+      <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-white/80">
+        Login completato, ti sto reindirizzando…
+      </div>
+    </main>
   );
 }
