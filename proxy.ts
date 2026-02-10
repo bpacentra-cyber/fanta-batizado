@@ -1,19 +1,9 @@
-import type { NextRequest } from "next/server";
+// proxy.ts
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-/**
- * Proxy file (sostituisce middleware.ts)
- * Compatibile con Next.js 16 + Vercel
- */
-
-export function proxy(request: NextRequest) {
-  const url = request.nextUrl.clone();
-
-  // 🔒 ESEMPIO SAFE: non blocca nulla, passa sempre avanti
+// Next.js 16: proxy.ts sostituisce middleware.ts
+export function proxy(_req: NextRequest) {
+  // Non facciamo nulla: lasciamo passare tutte le richieste
   return NextResponse.next();
 }
-
-// Matcher standard
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-};
