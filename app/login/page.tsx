@@ -114,13 +114,13 @@ export default function LoginPage() {
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-                Entra nel gioco. <span className="text-white/70">Senza drammi.</span>
+                Entra nel gioco. <span className="text-white/70"></span>
               </h1>
 
               <p className="text-white/70 leading-relaxed max-w-xl">
-                Qui non si “crea un account”.
+                Non serve dirti cosa dovrai fare...<b>già sai</b>
                 <br />
-                Qui si <b>evoca</b> un Magic Link e si entra nel Fanta Batizado. 🪄
+                Con il Magic Link sarai <b>ufficialmente</b> dentro il <b>Fanta Batizado.</b> 🪄
               </p>
             </div>
 
@@ -185,9 +185,9 @@ export default function LoginPage() {
               ) : null}
 
               <div className="text-xs text-white/55 leading-relaxed">
-                Tip da Frodo: se il link non arriva, guarda in <b>Spam</b> / <b>Promozioni</b>.
+                Tip da Instrutor Frodo: se il link non arriva, guarda in <b>Spam</b>.
                 <br />
-                E no: non puoi entrare “a forza”. (Ci abbiamo provato.)
+                E no: non puoi entrare “a forza”. (Ci abbiamo provato)
               </div>
             </div>
           </section>
@@ -228,9 +228,9 @@ export default function LoginPage() {
 
             <Card title="🚨 Disclaimer importantissimo" icon="🫡">
               <p>
-                <b>Prima regola del FANTA BATIZADO:</b> non parlarne con gli altri gruppi.
+                <b>Prima regola del FANTA BATIZADO:</b> NON parlare mai del Fanta Batizado.
                 <br />
-                <b>Seconda regola:</b> sul serio, non parlarne.
+                <b>Seconda regola:</b> Ricordati la prima.
               </p>
               <p className="mt-2 text-white/75">
                 Se sei qui, vuol dire che sei nella “cerchia ristretta”.

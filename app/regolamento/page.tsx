@@ -124,8 +124,7 @@ export default function RegolamentoPage() {
           </div>
 
           <p className="mt-3">
-            Usali con saggezza… oppure buttali tutti su un Mestre e spera negli
-            dei della capoeira.
+            Usali con saggezza… oppure buttali tutti su un Mestre e spera nei tuoi Orixás preferiti.
           </p>
 
           <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -151,7 +150,7 @@ export default function RegolamentoPage() {
             <li>affidati al tuo intuito</li>
           </ul>
           <p className="mt-3">
-            Una volta confermata… <b>che Oxóssi ti accompagni</b> 🙏
+            Una volta confermata… <b>il gioco ha inizio</b> 🔥
           </p>
         </Card>
 
