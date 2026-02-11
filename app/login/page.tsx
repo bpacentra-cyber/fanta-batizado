@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 function Badge({ children }: { children: React.ReactNode }) {
@@ -39,14 +39,13 @@ function Card({
 
 export default function LoginPage() {
   const router = useRouter();
-  const sp = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState<string>("");
   const [err, setErr] = useState<string>("");
 
-  // Se sei già loggato, vai a home (o dove vuoi tu)
+  // Se sei già loggato, vai a home
   useEffect(() => {
     let mounted = true;
 
@@ -73,7 +72,6 @@ export default function LoginPage() {
 
     setSending(true);
     try {
-      // redirectTo: prende l’origin corrente (vercel o localhost)
       const redirectTo = `${window.location.origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOtp({
