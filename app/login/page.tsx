@@ -2,204 +2,149 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-white/85 backdrop-blur">
-      {children}
-    </span>
-  );
-}
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-
   const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string>("");
+  const [err, setErr] = useState<string>("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      if (data.session?.user) router.replace("/profile");
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [router]);
+    // se già loggato, vai a home
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) router.replace("/");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  async function sendMagicLink() {
+  async function sendMagicLink(e: React.FormEvent) {
+    e.preventDefault();
+    setErr("");
     setMsg("");
-    const e = email.trim().toLowerCase();
-    if (!e) {
-      setMsg("❌ Inserisci un’email valida.");
-      return;
-    }
+    setLoading(true);
 
-    setBusy(true);
     try {
-      const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
-
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "";
       const { error } = await supabase.auth.signInWithOtp({
-        email: e,
-        options: { emailRedirectTo: redirectTo },
+        email,
+        options: {
+          emailRedirectTo: `${origin}/auth/callback`,
+        },
       });
-
       if (error) throw error;
 
-      setMsg("✅ Link inviato! Controlla email (anche spam).");
-    } catch (err: any) {
-      setMsg(`❌ ${err?.message ?? "Errore inatteso"}`);
+      setMsg("✅ Magic link inviato! Controlla la mail e clicca sul link.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Errore durante l’invio del magic link.");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
-      {/* HEADER */}
-      <div className="relative overflow-hidden">
-        {/* background decorativo (NON blocca click) */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-44 left-1/2 h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-white/10 blur-3xl opacity-60" />
-          <div className="absolute -bottom-60 right-[-160px] h-[560px] w-[560px] rounded-full bg-white/5 blur-3xl opacity-60" />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-transparent" />
+      <div className="mx-auto max-w-5xl px-6 py-10">
+        {/* top buttons */}
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            ← Home
+          </Link>
+
+          <Link
+            href="/regolamento"
+            className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            📜 Regolamento
+          </Link>
         </div>
 
-        <div className="relative mx-auto w-full max-w-6xl px-6 pt-10 pb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <Badge>Fanta Batizado</Badge>
-                <Badge>Magic Link</Badge>
-              </div>
-
-              <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-                🔐 Login
-              </h1>
-              <p className="text-white/70 leading-relaxed max-w-2xl">
-                Entra con il Magic Link. Niente password, niente sbatti.
-              </p>
-            </div>
-
-            {/* BOTTONI (cliccabili) */}
-            <div className="flex items-center gap-2 shrink-0">
-              <Link
-                href="/"
-                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-              >
-                ← Home
-              </Link>
-              <Link
-                href="/regolamento"
-                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-              >
-                📜 Regolamento
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* CONTENT */}
-      <div className="mx-auto w-full max-w-6xl px-6 pb-14">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* FORM LOGIN */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* login box */}
           <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur">
-            <h2 className="text-xl font-extrabold tracking-tight">
-              Inserisci la tua email
-            </h2>
-            <p className="mt-2 text-white/70">
-              Ti mandiamo un link: clicchi e sei dentro.
+            <h1 className="text-4xl font-extrabold tracking-tight">
+              Login — Fanta Batizado
+            </h1>
+            <p className="mt-2 text-white/70 leading-relaxed">
+              Inserisci la tua email: ti mando un Magic Link. Niente password, niente ansia.
             </p>
 
-            <div className="mt-5 space-y-3">
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="es. nome@email.com"
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-white/20"
-                autoComplete="email"
-                inputMode="email"
-              />
+            <form onSubmit={sendMagicLink} className="mt-6 space-y-3">
+              <div>
+                <label className="text-xs text-white/60">Email</label>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nome@email.com"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+                  type="email"
+                  required
+                />
+              </div>
 
               <button
-                onClick={sendMagicLink}
-                disabled={busy}
-                className="w-full rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90 disabled:opacity-60"
+                disabled={loading}
+                className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-white/90 disabled:opacity-60"
               >
-                {busy ? "Invio..." : "Invia Magic Link ✉️"}
+                {loading ? "Invio..." : "Invia Magic Link ✉️"}
               </button>
 
               {msg ? (
-                <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/80">
+                <div className="rounded-2xl border border-green-500/25 bg-green-500/10 p-4 text-green-200 text-sm">
                   {msg}
                 </div>
               ) : null}
-            </div>
+              {err ? (
+                <div className="rounded-2xl border border-red-500/25 bg-red-500/10 p-4 text-red-200 text-sm">
+                  ❌ {err}
+                </div>
+              ) : null}
+            </form>
 
-            <div className="mt-5 flex items-center justify-between gap-2">
+            <div className="mt-6 text-xs text-white/45">
+              Se clicchi sul link e “non succede niente”, aprilo con lo stesso browser dove hai l’app.
+            </div>
+          </section>
+
+          {/* regolamento preview */}
+          <section className="rounded-[28px] border border-white/10 bg-black/30 p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-extrabold tracking-tight">📜 Regolamento (preview)</h2>
               <Link
                 href="/regolamento"
                 className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
               >
                 Vai a Regolamento →
               </Link>
-
-              <Link
-                href="/"
-                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-              >
-                Torna Home
-              </Link>
             </div>
-          </section>
 
-          {/* MINI REGOLAMENTO */}
-          <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur">
-            <h2 className="text-xl font-extrabold tracking-tight">
-              📜 Mini-Regolamento (spoiler)
-            </h2>
+            <p className="mt-3 text-white/75 leading-relaxed">
+              Benvenuti nel gioco che nessuno aveva chiesto… ma che ora nessuno potrà più ignorare.
+            </p>
 
-            <div className="mt-4 space-y-3 text-white/80 leading-relaxed">
-              <p>
-                Benvenuto nel gioco che nessuno aveva chiesto… ma che ora nessuno
-                potrà più ignorare.
-              </p>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-white/80">
+              <div className="font-bold">Prima regola:</div>
+              <div>Non parlate mai del Fanta Batizado.</div>
+              <div className="mt-2 font-bold">Seconda regola:</div>
+              <div>Non parlate mai del Fanta Batizado!</div>
+            </div>
 
-              <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                <p className="font-bold text-white">Prime 2 regole:</p>
-                <p className="mt-2 text-white/80">
-                  • Prima regola: non parlare del Fanta Batizado
-                  <br />
-                  • Seconda regola: NON parlare del Fanta Batizado
-                </p>
+            <div className="mt-5 grid grid-cols-1 gap-2 text-sm text-white/75">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                💰 Budget: <b>500 Dbr</b>
               </div>
-
-              <p>
-                Budget: <b>500 Dbr</b>. Squadra: <b>1–6 membri</b>. Bonus e malus:
-                <b> inevitabili</b>.
-              </p>
-
-              <div className="flex flex-wrap gap-2 pt-1">
-                <Badge>Goliardico</Badge>
-                <Badge>Realtime</Badge>
-                <Badge>Axé 🔥</Badge>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                👥 Squadra: <b>1–6 membri</b>
               </div>
-
-              <Link
-                href="/regolamento"
-                className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90"
-              >
-                Leggi tutto il regolamento →
-              </Link>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                ⚡ Punti: <b>Bonus & Malus</b>
+              </div>
             </div>
           </section>
         </div>
