@@ -1,68 +1,44 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
 type ProfileRow = {
-  user_id: string;
+  id: string;
   nome: string | null;
-  foto_url: string | null;
-  is_admin: boolean | null;
-  is_founder: boolean | null;
+  avatar_url: string | null;
+  is_admin?: boolean | null;
+  is_founder?: boolean | null;
 };
 
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-white/85 backdrop-blur">
-      {children}
-    </span>
-  );
-}
-
-function Avatar({ url, fallback }: { url: string | null | undefined; fallback: string }) {
-  return (
-    <div className="relative h-24 w-24 overflow-hidden rounded-3xl border border-white/10 bg-black/30">
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="Foto profilo" className="h-full w-full object-cover" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-2xl font-extrabold text-white/70">
-          {fallback}
-        </div>
-      )}
-      <div className="absolute inset-0 bg-black/10" />
-    </div>
-  );
+function safeInitials(name?: string | null) {
+  const n = (name || "").trim();
+  if (!n) return "👤";
+  return n.split(" ").slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 }
 
 export default function ProfilePage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const [err, setErr] = useState("");
-  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [nome, setNome] = useState("");
-  const [file, setFile] = useState<File | null>(null);
 
-  const fallback = useMemo(() => {
-    const n = nome?.trim() || profile?.nome?.trim() || "U";
-    return (n[0] || "U").toUpperCase();
-  }, [nome, profile?.nome]);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   async function loadProfile() {
-    setErr("");
-    setMsg("");
+    setErr(null);
+    setOk(null);
     setLoading(true);
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData.session?.user;
-
+    const { data: auth } = await supabase.auth.getUser();
+    const user = auth?.user;
     if (!user) {
       router.replace("/login");
       return;
@@ -70,48 +46,20 @@ export default function ProfilePage() {
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("user_id, nome, foto_url, is_admin, is_founder")
-      .eq("user_id", user.id)
+      .select("id, nome, avatar_url, is_admin, is_founder")
+      .eq("id", user.id)
       .maybeSingle();
 
     if (error) {
       setErr(error.message);
       setProfile(null);
-      setLoading(false);
-      return;
+      setNome("");
+    } else {
+      const p = (data as ProfileRow) ?? null;
+      setProfile(p);
+      setNome(p?.nome ?? "");
     }
 
-    if (!data) {
-      const { error: insErr } = await supabase.from("profiles").insert({
-        user_id: user.id,
-        nome: user.email?.split("@")[0] ?? "Utente",
-      });
-
-      if (insErr) {
-        setErr(insErr.message);
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-
-      const { data: data2, error: err2 } = await supabase
-        .from("profiles")
-        .select("user_id, nome, foto_url, is_admin, is_founder")
-        .eq("user_id", user.id)
-        .single();
-
-      if (err2) setErr(err2.message);
-      else {
-        setProfile(data2 as ProfileRow);
-        setNome((data2?.nome ?? "").toString());
-      }
-
-      setLoading(false);
-      return;
-    }
-
-    setProfile(data as ProfileRow);
-    setNome((data.nome ?? "").toString());
     setLoading(false);
   }
 
@@ -120,157 +68,196 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function saveNameOnly() {
-    setErr("");
-    setMsg("");
-    setSaving(true);
+  async function salvaNome() {
+    setErr(null);
+    setOk(null);
 
+    const clean = nome.trim();
+    if (!clean) {
+      setErr("Inserisci un nome valido.");
+      return;
+    }
+
+    setBusy(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData.session?.user;
-      if (!user) return router.replace("/login");
-
-      const clean = nome.trim();
-      if (!clean) {
-        setErr("Inserisci un nome valido 👀");
+      const { data: auth } = await supabase.auth.getUser();
+      const user = auth?.user;
+      if (!user) {
+        router.replace("/login");
         return;
       }
 
-      const { error } = await supabase.from("profiles").update({ nome: clean }).eq("user_id", user.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ nome: clean })
+        .eq("id", user.id);
+
       if (error) throw error;
 
-      setMsg("✅ Nome aggiornato!");
+      setOk("Nome aggiornato ✅");
       await loadProfile();
     } catch (e: any) {
-      setErr(e?.message ?? "Errore durante il salvataggio.");
+      setErr(e?.message ?? "Errore durante il salvataggio del nome.");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
 
-  async function uploadPhotoAndSave() {
-    setErr("");
-    setMsg("");
-    if (!file) return setErr("Seleziona prima una foto 🙂");
-
-    setSaving(true);
+  async function uploadFoto(file: File) {
+    setErr(null);
+    setOk(null);
+    setBusy(true);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData.session?.user;
-      if (!user) return router.replace("/login");
+      const { data: auth } = await supabase.auth.getUser();
+      const user = auth?.user;
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
 
+      // Bucket che stai usando tu
+      const BUCKET = "partecipanti";
+
+      // path unico (così non sovrascrivi e non incasini cache)
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
       const path = `${user.id}/${Date.now()}.${ext}`;
 
-      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      // Upload
+      const { error: upErr } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type || undefined,
+        });
+
       if (upErr) throw upErr;
 
-      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
-      const publicUrl = pub.publicUrl;
+      // Public URL (bucket pubblico)
+      const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      const publicUrl = pub?.publicUrl;
+      if (!publicUrl) throw new Error("Impossibile ottenere publicUrl della foto.");
 
-      const { error: dbErr } = await supabase.from("profiles").update({ foto_url: publicUrl }).eq("user_id", user.id);
+      // Aggiorna profiles.avatar_url
+      const { error: dbErr } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", user.id);
+
       if (dbErr) throw dbErr;
 
-      setMsg("✅ Foto aggiornata!");
-      setFile(null);
+      setOk("Foto aggiornata ✅");
       await loadProfile();
     } catch (e: any) {
-      setErr(e?.message ?? "Errore durante l’upload.");
+      setErr(e?.message ?? "Errore durante l'upload.");
     } finally {
-      setSaving(false);
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
-      <div className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-40 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-white/10 blur-3xl opacity-60" />
-          <div className="absolute -bottom-56 right-[-120px] h-[520px] w-[520px] rounded-full bg-white/5 blur-3xl opacity-60" />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-transparent" />
-        </div>
-
-        <div className="relative mx-auto w-full max-w-3xl px-6 pt-10 pb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <Badge>👤 Profilo</Badge>
-                {profile?.is_admin ? <Badge>👑 Admin</Badge> : null}
-                {!profile?.is_admin && profile?.is_founder ? <Badge>🫡 Founder</Badge> : null}
-              </div>
-              <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">Il tuo profilo</h1>
-              <p className="text-white/70 leading-relaxed">Cambia nome e foto caposquadra.</p>
-            </div>
-
-            <div className="flex flex-col gap-2 shrink-0">
-              <Link href="/" className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">
-                ← Home
-              </Link>
-              <Link href="/mercato" className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90">
-                Vai al Mercato
-              </Link>
-            </div>
+      <div className="mx-auto w-full max-w-3xl px-6 py-10">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-4xl font-extrabold tracking-tight">👤 Profilo</h1>
+            <p className="mt-2 text-white/70">
+              Aggiorna nome e foto (serve login).
+            </p>
           </div>
+
+          <button
+            onClick={() => router.push("/")}
+            className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            ← Home
+          </button>
         </div>
-      </div>
 
-      <div className="mx-auto w-full max-w-3xl px-6 pb-14 space-y-5">
         {err ? (
-          <div className="rounded-[28px] border border-red-500/30 bg-red-500/10 p-5 text-red-200">❌ {err}</div>
+          <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-red-200">
+            ❌ {err}
+          </div>
         ) : null}
 
-        {msg ? (
-          <div className="rounded-[28px] border border-green-500/30 bg-green-500/10 p-5 text-green-100">{msg}</div>
+        {ok ? (
+          <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-100">
+            {ok}
+          </div>
         ) : null}
 
-        {loading ? (
-          <div className="rounded-[28px] border border-white/10 bg-white/[0.06] p-6 text-white/70">Caricamento…</div>
-        ) : (
-          <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-6 backdrop-blur">
-            <div className="flex items-start gap-5">
-              <Avatar url={profile?.foto_url} fallback={fallback} />
+        <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6">
+          {loading ? (
+            <div className="text-white/70">Caricamento…</div>
+          ) : (
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative h-24 w-24 overflow-hidden rounded-3xl border border-white/10 bg-black/30">
+                  {profile?.avatar_url ? (
+                    <Image
+                      src={profile.avatar_url}
+                      alt="Avatar"
+                      fill
+                      className="object-cover"
+                      sizes="96px"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-2xl font-extrabold text-white/70">
+                      {safeInitials(profile?.nome)}
+                    </div>
+                  )}
+                </div>
 
-              <div className="flex-1 space-y-4">
                 <div>
-                  <label className="block text-sm text-white/75">Nome caposquadra</label>
+                  <div className="text-sm text-white/60">Nome</div>
                   <input
                     value={nome}
                     onChange={(e) => setNome(e.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-white/20"
-                    placeholder="Es. Amuleto"
+                    disabled={busy}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-2 text-sm outline-none"
+                    placeholder="Il tuo nome"
                   />
-                  <button
-                    onClick={saveNameOnly}
-                    disabled={saving}
-                    className="mt-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"
-                  >
-                    {saving ? "Salvo…" : "Salva nome"}
-                  </button>
+
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={salvaNome}
+                      disabled={busy || !nome.trim()}
+                      className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-40"
+                    >
+                      {busy ? "..." : "Salva nome"}
+                    </button>
+                  </div>
+
+                  <div className="mt-2 text-xs text-white/50">
+                    {profile?.is_admin ? "👑 Admin" : profile?.is_founder ? "🫡 Founder" : "Utente"}
+                  </div>
                 </div>
+              </div>
 
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <div className="text-sm font-extrabold">📸 Foto profilo</div>
-
+              <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                <div className="text-sm font-bold">Carica foto</div>
+                <div className="mt-2">
                   <input
+                    ref={fileRef}
                     type="file"
                     accept="image/*"
-                    className="mt-3 block w-full text-sm text-white/70 file:mr-3 file:rounded-xl file:border-0 file:bg-white file:px-4 file:py-2 file:text-sm file:font-semibold file:text-black hover:file:bg-white/90"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    disabled={busy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadFoto(f);
+                    }}
+                    className="text-sm text-white/80"
                   />
-
-                  <button
-                    onClick={uploadPhotoAndSave}
-                    disabled={saving}
-                    className="mt-3 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90 disabled:opacity-50"
-                  >
-                    {saving ? "Carico…" : "Carica foto"}
-                  </button>
+                </div>
+                <div className="mt-2 text-xs text-white/50">
+                  Se non parte: è quasi sempre una policy storage mancante (SELECT/INSERT/UPDATE) o bucket non pubblico.
                 </div>
               </div>
             </div>
-          </section>
-        )}
+          )}
+        </div>
       </div>
     </main>
   );
