@@ -114,7 +114,7 @@ if (error) throw error;
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-                🚪 Entra nel gioco. <span className="text-white/70"></span>
+                🚪 Entra nel gioco <span className="text-white/70"></span>
               </h1>
 
               <p className="text-white/70 leading-relaxed max-w-xl">
@@ -195,7 +195,7 @@ if (error) throw error;
 
           {/* REGOLAMENTO PREVIEW */}
           <div className="space-y-5">
-            <Card title="📜 Mini-regolamento (super rapido)" icon="🪘">
+            <Card title="Mini-regolamento (super rapido)" icon="📜">
               <ul className="mt-1 list-disc pl-5 space-y-1">
                 <li>
                   💰 Hai <b>500 Dbr</b> e una missione: creare la squadra più devastante.
@@ -227,7 +227,7 @@ if (error) throw error;
               </div>
             </Card>
 
-            <Card title="🚨 Disclaimer importantissimo" icon="🫡">
+            <Card title="Disclaimer importantissimo" icon="🚨">
               <p>
                 <b>Prima regola del FANTA BATIZADO:</b> NON parlare mai del Fanta Batizado.
                 <br />
