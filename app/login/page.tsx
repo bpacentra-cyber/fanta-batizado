@@ -114,13 +114,14 @@ if (error) throw error;
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-                Entra nel gioco. <span className="text-white/70"></span>
+                🚪 Entra nel gioco. <span className="text-white/70"></span>
               </h1>
 
               <p className="text-white/70 leading-relaxed max-w-xl">
                 Non serve dirti cosa dovrai fare...<b>già sai</b>
                 <br />
-                Con il Magic Link sarai <b>ufficialmente</b> dentro il <b>Fanta Batizado.</b> 🪄
+                <br />
+                Con il Magic Link sarai <b>ufficialmente</b> dentro il <b>Fanta Batizado.</b> 🔥
               </p>
             </div>
 
@@ -194,19 +195,19 @@ if (error) throw error;
 
           {/* REGOLAMENTO PREVIEW */}
           <div className="space-y-5">
-            <Card title="📜 Mini-regolamento (super rapido)" icon="🤡">
+            <Card title="📜 Mini-regolamento (super rapido)" icon="🪘">
               <ul className="mt-1 list-disc pl-5 space-y-1">
                 <li>
-                  Hai <b>500 Dbr</b> e una missione: creare la squadra più devastante.
+                  💰 Hai <b>500 Dbr</b> e una missione: creare la squadra più devastante.
                 </li>
                 <li>
-                  Scegli <b>1–6 membri</b>. Il budget scala mentre scegli.
+                  🤸‍♂️ Scegli <b>1–6 membri</b>. Il budget scala mentre scegli.
                 </li>
                 <li>
-                  Io sono l’<b>Admin Supremo</b>. I pianti valgono, ma non cambiano le regole.
+                  👑 <b>Admin Supremo:</b> Instrutor Frodo. I pianti valgono, ma non cambiano le regole.
                 </li>
                 <li>
-                  Bonus & malus li vedi nella sezione <b>Azioni</b>.
+                 ➕➖ Bonus & malus li vedi nella sezione <b>Azioni</b>.
                 </li>
               </ul>
 
