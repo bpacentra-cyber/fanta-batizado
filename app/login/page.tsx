@@ -75,13 +75,13 @@ export default function LoginPage() {
       const redirectTo = `${window.location.origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOtp({
-        email: e,
-        options: {
-          emailRedirectTo: redirectTo,
-        },
-      });
+  email,
+  options: {
+    emailRedirectTo: `${window.location.origin}/auth/callback`,
+  },
+});
+if (error) throw error;
 
-      if (error) throw error;
 
       setMsg(
         "📩 Magic Link inviato! Apri la mail e clicca il link. (Se non arriva, controlla spam / promozioni.)"
