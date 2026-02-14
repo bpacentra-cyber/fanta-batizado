@@ -7,57 +7,48 @@ import { supabase } from "@/lib/supabase";
 export default function ClientCallback() {
   const router = useRouter();
   const sp = useSearchParams();
-  const [status, setStatus] = useState("Sto completando il login...");
+  const [msg, setMsg] = useState("Sto completando l’accesso…");
 
   useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
-        // Caso 1: PKCE (?code=...)
-        const code = sp.get("code");
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
+        // Supabase v2: quando torni dal magic link, la sessione viene salvata automaticamente
+        // Qui forziamo un check e poi mandiamo l’utente dove serve.
+        const { data, error } = await supabase.auth.getSession();
+        if (!alive) return;
 
-          if (!alive) return;
-          setStatus("✅ Login completato. Reindirizzo...");
-          router.replace("/");
+        if (error) {
+          setMsg("Errore sessione: " + error.message);
           return;
         }
 
-        // Caso 2: sessione già presente (hash tokens o cookie)
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-
-        if (!alive) return;
-
-        if (data.session) {
-          setStatus("✅ Login completato. Reindirizzo...");
-          router.replace("/");
-        } else {
-          setStatus("❌ Sessione non trovata. Torna al login e riprova.");
-          setTimeout(() => router.replace("/login"), 1200);
+        if (data.session?.user) {
+          router.replace("/profile");
+          return;
         }
+
+        // fallback: se per qualche motivo non c’è sessione, vai al login
+        const err = sp.get("error_description") || sp.get("error");
+        if (err) setMsg("Errore login: " + err);
+        setTimeout(() => router.replace("/login"), 400);
       } catch (e: any) {
-        if (!alive) return;
-        setStatus(`❌ Errore callback: ${e?.message ?? "sconosciuto"}`);
-        setTimeout(() => router.replace("/login"), 1500);
+        setMsg("Errore inatteso: " + (e?.message || "sconosciuto"));
       }
     })();
 
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router, sp]);
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center px-6">
-      <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-white/[0.06] p-6 text-center">
-        <div className="text-xl font-extrabold">Auth Callback</div>
-        <div className="mt-3 text-sm text-white/70">{status}</div>
+    <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center px-6">
+      <div className="max-w-lg w-full rounded-[28px] border border-white/10 bg-white/[0.06] p-6 backdrop-blur">
+        <div className="text-2xl font-extrabold">🔐 Accesso in corso</div>
+        <div className="mt-3 text-white/70">{msg}</div>
       </div>
-    </div>
+    </main>
   );
 }
