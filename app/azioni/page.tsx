@@ -1,210 +1,217 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 type Azione = {
   id: string;
-  nome: string;
-  descrizione: string | null;
+  titolo: string;
   punti: number;
-  is_active: boolean;
 };
 
 export default function AzioniPage() {
   const [azioni, setAzioni] = useState<Azione[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const [nuovaAzione, setNuovaAzione] = useState("");
-  const [punti, setPunti] = useState(1);
+  const [newTitolo, setNewTitolo] = useState("");
+  const [newPunti, setNewPunti] = useState(0);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editNome, setEditNome] = useState("");
-  const [editPunti, setEditPunti] = useState(1);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editTitolo, setEditTitolo] = useState("");
+  const [editPunti, setEditPunti] = useState(0);
 
-  async function loadAzioni() {
+  // =========================
+  // LOAD
+  // =========================
+  async function load() {
     setLoading(true);
+
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("user_id", user.id)
+        .single();
+
+      setIsAdmin(profile?.is_admin === true);
+    }
 
     const { data } = await supabase
       .from("azioni")
-      .select("*")
-      .eq("is_active", true)
-      .order("nome");
+      .select("id, titolo:descrizione, punti")
+      .order("created_at", { ascending: false });
 
-    setAzioni((data || []) as Azione[]);
+    setAzioni(data || []);
     setLoading(false);
   }
 
-  async function checkAdmin() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return;
-
-    // Se nella tua tabella profiles la PK è user_id invece di id:
-    // cambia .eq("id", user.id) -> .eq("user_id", user.id)
-    const { data } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (data?.is_admin) setIsAdmin(true);
-  }
-
   useEffect(() => {
-    loadAzioni();
-    checkAdmin();
+    load();
   }, []);
 
-  async function creaAzione() {
-    if (!nuovaAzione.trim()) return;
+  // =========================
+  // ADD
+  // =========================
+  async function addAzione() {
+    if (!newTitolo) return;
 
     await supabase.from("azioni").insert({
-      nome: nuovaAzione,
-      punti,
-      is_active: true,
+      descrizione: newTitolo,
+      punti: newPunti,
     });
 
-    setNuovaAzione("");
-    setPunti(1);
-    loadAzioni();
+    setNewTitolo("");
+    setNewPunti(0);
+
+    load();
   }
 
-  async function elimina(id: string) {
+  // =========================
+  // DELETE
+  // =========================
+  async function deleteAzione(id: string) {
     if (!confirm("Eliminare questa azione?")) return;
 
     await supabase.from("azioni").delete().eq("id", id);
-    loadAzioni();
+
+    load();
   }
 
-  async function salvaModifica(id: string) {
+  // =========================
+  // EDIT
+  // =========================
+  async function saveEdit(id: string) {
     await supabase
       .from("azioni")
       .update({
-        nome: editNome,
+        descrizione: editTitolo,
         punti: editPunti,
       })
       .eq("id", id);
 
-    setEditingId(null);
-    loadAzioni();
+    setEditId(null);
+    load();
   }
 
+  // =========================
+  // UI
+  // =========================
   return (
-    <main className="min-h-screen bg-neutral-950 text-white p-4 max-w-xl mx-auto">
+    <div className="min-h-screen bg-black text-white p-4 max-w-xl mx-auto">
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-extrabold">⚡ Azioni</h1>
+        <h1 className="text-2xl font-bold">⚡ Azioni</h1>
 
         <Link
           href="/"
-          className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+          className="rounded-xl border border-white/20 px-3 py-1 text-sm"
         >
           ← Home
         </Link>
       </div>
 
-      {/* CREA AZIONE (solo admin) */}
+      {/* ADMIN - ADD */}
       {isAdmin && (
-        <div className="mb-6 p-4 rounded-2xl border border-white/10 bg-white/5 space-y-3">
-          <div className="font-bold">➕ Nuova azione</div>
+        <div className="mb-6 p-4 border border-white/10 rounded-xl">
+          <div className="text-sm mb-2">➕ Nuova azione</div>
 
           <input
-            value={nuovaAzione}
-            onChange={(e) => setNuovaAzione(e.target.value)}
-            placeholder="Titolo azione"
-            className="w-full p-2 rounded bg-black border border-white/10"
+            value={newTitolo}
+            onChange={(e) => setNewTitolo(e.target.value)}
+            placeholder="Descrizione azione"
+            className="w-full mb-2 p-2 rounded bg-black border border-white/20"
           />
 
           <input
             type="number"
-            value={punti}
-            onChange={(e) => setPunti(Number(e.target.value))}
-            className="w-full p-2 rounded bg-black border border-white/10"
+            value={newPunti}
+            onChange={(e) => setNewPunti(Number(e.target.value))}
+            className="w-full mb-2 p-2 rounded bg-black border border-white/20"
           />
 
           <button
-            onClick={creaAzione}
-            className="w-full bg-green-600 py-2 rounded font-bold"
+            onClick={addAzione}
+            className="w-full bg-white text-black py-2 rounded font-bold"
           >
-            Salva
+            Aggiungi
           </button>
         </div>
       )}
 
-      {/* LISTA AZIONI */}
+      {/* LISTA */}
       {loading ? (
         <div>Caricamento...</div>
       ) : (
         <div className="space-y-3">
           {azioni.map((a) => {
-            const isBonus = (a.punti ?? 0) >= 0;
+            const isBonus = a.punti >= 0;
 
             return (
               <div
                 key={a.id}
-                className="p-4 rounded-2xl border border-white/10 bg-white/5"
+                className="p-4 rounded-xl border border-white/10 bg-white/5"
               >
-                {editingId === a.id ? (
+                {editId === a.id ? (
                   <>
                     <input
-                      value={editNome}
-                      onChange={(e) => setEditNome(e.target.value)}
-                      className="w-full p-2 rounded bg-black border border-white/10 mb-2"
+                      value={editTitolo}
+                      onChange={(e) => setEditTitolo(e.target.value)}
+                      className="w-full mb-2 p-2 bg-black border border-white/20 rounded"
                     />
 
                     <input
                       type="number"
                       value={editPunti}
                       onChange={(e) => setEditPunti(Number(e.target.value))}
-                      className="w-full p-2 rounded bg-black border border-white/10 mb-2"
+                      className="w-full mb-2 p-2 bg-black border border-white/20 rounded"
                     />
 
                     <button
-                      onClick={() => salvaModifica(a.id)}
-                      className="w-full bg-green-600 py-2 rounded"
+                      onClick={() => saveEdit(a.id)}
+                      className="bg-green-500 px-3 py-1 rounded text-sm"
                     >
                       Salva
                     </button>
                   </>
                 ) : (
                   <>
-                    {/* SOLO TITOLO */}
-                    <div className="font-bold text-lg break-words">{a.nome}</div>
-
-                    {/* PUNTEGGIO sotto il titolo, colorato */}
-                    <div
-                      className={[
-                        "mt-1 inline-flex items-center rounded-xl border px-3 py-1 text-sm font-extrabold",
-                        isBonus
-                          ? "border-green-500/25 bg-green-500/10 text-green-200"
-                          : "border-red-500/25 bg-red-500/10 text-red-200",
-                      ].join(" ")}
-                    >
-                      {isBonus ? `+${a.punti}` : `${a.punti}`} pt
+                    {/* TITOLO */}
+                    <div className="font-bold break-words">
+                      {a.titolo}
                     </div>
 
-                    {/* BOTTONI ADMIN */}
+                    {/* PUNTI */}
+                    <div
+                      className={`mt-2 text-sm font-bold ${
+                        isBonus ? "text-green-400" : "text-red-400"
+                      }`}
+                    >
+                      {isBonus ? `+${a.punti}` : a.punti}
+                    </div>
+
+                    {/* ADMIN BUTTONS */}
                     {isAdmin && (
                       <div className="flex gap-2 mt-3">
                         <button
                           onClick={() => {
-                            setEditingId(a.id);
-                            setEditNome(a.nome);
+                            setEditId(a.id);
+                            setEditTitolo(a.titolo);
                             setEditPunti(a.punti);
                           }}
-                          className="flex-1 bg-yellow-600 py-1 rounded text-sm"
+                          className="px-2 py-1 text-xs border border-white/20 rounded"
                         >
                           Modifica
                         </button>
 
                         <button
-                          onClick={() => elimina(a.id)}
-                          className="flex-1 bg-red-600 py-1 rounded text-sm"
+                          onClick={() => deleteAzione(a.id)}
+                          className="px-2 py-1 text-xs border border-red-500 rounded text-red-400"
                         >
                           Elimina
                         </button>
@@ -217,6 +224,6 @@ export default function AzioniPage() {
           })}
         </div>
       )}
-    </main>
+    </div>
   );
 }
