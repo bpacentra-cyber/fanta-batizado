@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
+
 
 type AzioneRow = {
   id: string;
@@ -246,6 +248,15 @@ export default function AzioniPage() {
                     active ? "border-white/10 bg-white/5" : "border-white/10 bg-white/3 opacity-60"
                   }`}
                 >
+                  <div className="flex justify-end">
+  <Link
+    href="/"
+    className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+  >
+    ← Home
+  </Link>
+</div>
+
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       {/* SOLO TITOLO: niente descrizione */}
