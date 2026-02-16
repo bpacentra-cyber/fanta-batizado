@@ -195,7 +195,7 @@ if (error) throw error;
 
           {/* REGOLAMENTO PREVIEW */}
           <div className="space-y-5">
-            <Card title="Mini-regolamento (super rapido)" icon="📜">
+            <Card title="Mini-regolamento (leggi il regolamento completo)" icon="📜">
               <ul className="mt-1 list-disc pl-5 space-y-1">
                 <li>
                   💰 Hai <b>500 Dbr</b> e una missione: creare la squadra più devastante.
