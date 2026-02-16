@@ -1,23 +1,39 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function ClientCallback() {
   const router = useRouter();
+  const sp = useSearchParams();
+  const [msg, setMsg] = useState("Accesso in corso…");
 
   useEffect(() => {
     let mounted = true;
 
     async function run() {
-      // Gestisce automaticamente la sessione dal link (detectSessionInUrl)
-      await supabase.auth.getSession();
+      try {
+        // Magic link / PKCE: spesso arriva ?code=...
+        const code = sp.get("code");
 
-      if (!mounted) return;
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        } else {
+          // fallback: prova a leggere sessione già presente
+          await supabase.auth.getSession();
+        }
 
-      // Vai SEMPRE alla home aggiornata
-      router.replace("/");
+        if (!mounted) return;
+
+        // vai alla home
+        router.replace("/");
+      } catch (e: any) {
+        console.error(e);
+        if (!mounted) return;
+        setMsg(`❌ Login fallito: ${e?.message ?? "errore sconosciuto"}`);
+      }
     }
 
     run();
@@ -25,12 +41,12 @@ export default function ClientCallback() {
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, [router, sp]);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
       <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-white/80">
-        Accesso in corso…
+        {msg}
       </div>
     </div>
   );
