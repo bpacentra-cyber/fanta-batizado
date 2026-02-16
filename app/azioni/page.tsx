@@ -1,402 +1,216 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
-
-type AzioneRow = {
+type Azione = {
   id: string;
-  nome: string | null;
-  punti: number | null;
-  codice: string | null;
-  is_active: boolean | null;
-  created_at?: string | null;
+  nome: string;
+  descrizione: string | null;
+  punti: number;
+  is_active: boolean;
 };
 
-function slugify(input: string) {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[àáâãäå]/g, "a")
-    .replace(/[èéêë]/g, "e")
-    .replace(/[ìíîï]/g, "i")
-    .replace(/[òóôõö]/g, "o")
-    .replace(/[ùúûü]/g, "u")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
 export default function AzioniPage() {
+  const [azioni, setAzioni] = useState<Azione[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const [azioni, setAzioni] = useState<AzioneRow[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // TAB: "list" o "admin"
-  const [tab, setTab] = useState<"list" | "admin">("list");
+  const [nuovaAzione, setNuovaAzione] = useState("");
+  const [punti, setPunti] = useState(1);
 
-  // Admin form state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [nome, setNome] = useState("");
-  const [punti, setPunti] = useState<number>(0);
-  const [isActive, setIsActive] = useState(true);
+  const [editNome, setEditNome] = useState("");
+  const [editPunti, setEditPunti] = useState(1);
 
-  const sortedAzioni = useMemo(() => {
-    const copy = [...azioni];
-    copy.sort((a, b) => {
-      const aa = a.is_active ?? true;
-      const bb = b.is_active ?? true;
-      if (aa !== bb) return aa ? -1 : 1;
-      const an = (a.nome ?? "").toLowerCase();
-      const bn = (b.nome ?? "").toLowerCase();
-      return an.localeCompare(bn);
-    });
-    return copy;
-  }, [azioni]);
-
-  async function loadAll() {
+  // 🔹 Carica azioni
+  async function loadAzioni() {
     setLoading(true);
-    setErrorMsg(null);
 
-    try {
-      const { data: authData, error: authErr } = await supabase.auth.getUser();
-      if (authErr) throw authErr;
+    const { data } = await supabase
+      .from("azioni")
+      .select("*")
+      .eq("is_active", true)
+      .order("nome");
 
-      const user = authData.user;
-      if (!user) {
-        setIsAdmin(false);
-      } else {
-        const { data: prof, error: profErr } = await supabase
-          .from("profiles")
-          .select("is_admin")
-          .eq("user_id", user.id)
-          .single();
+    setAzioni(data || []);
+    setLoading(false);
+  }
 
-        setIsAdmin(!profErr && !!prof?.is_admin);
-      }
+  // 🔹 Controllo admin
+  async function checkAdmin() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-      const { data, error } = await supabase
-        .from("azioni")
-        .select("id,nome,punti,codice,is_active,created_at")
-        .order("created_at", { ascending: true });
+    if (!user) return;
 
-      if (error) throw error;
-      setAzioni((data ?? []) as AzioneRow[]);
-    } catch (e: any) {
-      console.error(e);
-      setErrorMsg(e?.message ?? "Errore nel caricamento delle azioni.");
-    } finally {
-      setLoading(false);
-    }
+    const { data } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+
+    if (data?.is_admin) setIsAdmin(true);
   }
 
   useEffect(() => {
-    loadAll();
+    loadAzioni();
+    checkAdmin();
   }, []);
 
-  function resetForm() {
+  // 🔹 CREA AZIONE
+  async function creaAzione() {
+    if (!nuovaAzione.trim()) return;
+
+    await supabase.from("azioni").insert({
+      nome: nuovaAzione,
+      punti,
+      is_active: true,
+    });
+
+    setNuovaAzione("");
+    setPunti(1);
+    loadAzioni();
+  }
+
+  // 🔹 ELIMINA
+  async function elimina(id: string) {
+    if (!confirm("Eliminare questa azione?")) return;
+
+    await supabase.from("azioni").delete().eq("id", id);
+    loadAzioni();
+  }
+
+  // 🔹 MODIFICA
+  async function salvaModifica(id: string) {
+    await supabase
+      .from("azioni")
+      .update({
+        nome: editNome,
+        punti: editPunti,
+      })
+      .eq("id", id);
+
     setEditingId(null);
-    setNome("");
-    setPunti(0);
-    setIsActive(true);
-  }
-
-  function startEdit(a: AzioneRow) {
-    setEditingId(a.id);
-    setNome(a.nome ?? "");
-    setPunti(a.punti ?? 0);
-    setIsActive(a.is_active ?? true);
-    setTab("admin");
-  }
-
-  async function saveAction() {
-    setErrorMsg(null);
-
-    const cleanNome = nome.trim();
-    if (!cleanNome) {
-      setErrorMsg("Inserisci il titolo dell’azione.");
-      return;
-    }
-
-    const payload = {
-      nome: cleanNome,
-      punti: Number.isFinite(punti) ? punti : 0,
-      is_active: isActive,
-      codice: slugify(cleanNome),
-      descrizione: null, // così NON la usiamo più
-    } as any;
-
-    try {
-      if (editingId) {
-        const { error } = await supabase.from("azioni").update(payload).eq("id", editingId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("azioni").insert(payload);
-        if (error) throw error;
-      }
-
-      resetForm();
-      await loadAll();
-      setTab("list");
-    } catch (e: any) {
-      console.error(e);
-      setErrorMsg(e?.message ?? "Errore nel salvataggio.");
-    }
-  }
-
-  async function deleteAction(id: string) {
-    const ok = confirm("Vuoi eliminare questa azione? (non si torna indietro)");
-    if (!ok) return;
-
-    setErrorMsg(null);
-    try {
-      const { error } = await supabase.from("azioni").delete().eq("id", id);
-      if (error) throw error;
-      await loadAll();
-    } catch (e: any) {
-      console.error(e);
-      setErrorMsg(e?.message ?? "Errore eliminazione.");
-    }
+    loadAzioni();
   }
 
   return (
-    <main className="min-h-screen bg-black text-white px-4 py-6">
-      <div className="mx-auto w-full max-w-xl">
-        <header className="mb-4 flex items-center justify-between gap-3">
-  <div>
-    <h1 className="text-3xl font-extrabold tracking-tight">🔥 Azioni</h1>
-    <p className="mt-2 text-sm text-white/70">
-      Leggi bene ogni azione prima di giocare 👇
-    </p>
-  </div>
+    <main className="min-h-screen bg-neutral-950 text-white p-4 max-w-xl mx-auto">
 
-  <a
-    href="/"
-    className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold hover:bg-white/10"
-  >
-    🏠 Home
-  </a>
-</header>
+      {/* 🔹 HEADER */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-extrabold">⚡ Azioni</h1>
 
+        <Link
+          href="/"
+          className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+        >
+          ← Home
+        </Link>
+      </div>
 
-        {/* TAB SWITCH */}
-        <div className="mb-5 flex items-center gap-2">
+      {/* 🔹 CREA AZIONE (solo admin) */}
+      {isAdmin && (
+        <div className="mb-6 p-4 rounded-2xl border border-white/10 bg-white/5 space-y-3">
+          <div className="font-bold">➕ Nuova azione</div>
+
+          <input
+            value={nuovaAzione}
+            onChange={(e) => setNuovaAzione(e.target.value)}
+            placeholder="Titolo azione"
+            className="w-full p-2 rounded bg-black border border-white/10"
+          />
+
+          <input
+            type="number"
+            value={punti}
+            onChange={(e) => setPunti(Number(e.target.value))}
+            className="w-full p-2 rounded bg-black border border-white/10"
+          />
+
           <button
-            onClick={() => setTab("list")}
-            className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold ${
-              tab === "list"
-                ? "border-white/25 bg-white text-black"
-                : "border-white/10 bg-white/5 text-white hover:bg-white/10"
-            }`}
+            onClick={creaAzione}
+            className="w-full bg-green-600 py-2 rounded font-bold"
           >
-            Lista
-          </button>
-
-          <button
-            onClick={() => setTab("admin")}
-            disabled={!isAdmin}
-            className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold ${
-              !isAdmin
-                ? "border-white/10 bg-white/5 text-white/40 cursor-not-allowed"
-                : tab === "admin"
-                ? "border-white/25 bg-white text-black"
-                : "border-white/10 bg-white/5 text-white hover:bg-white/10"
-            }`}
-            title={!isAdmin ? "Solo admin" : ""}
-          >
-            Admin
+            Salva
           </button>
         </div>
+      )}
 
-        {/* ERROR */}
-        {!loading && errorMsg && (
-          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm">
-            <div className="font-semibold">Errore</div>
-            <div className="mt-1 text-white/80 break-words">{errorMsg}</div>
-          </div>
-        )}
+      {/* 🔹 LISTA AZIONI */}
+      {loading ? (
+        <div>Caricamento...</div>
+      ) : (
+        <div className="space-y-3">
+          {azioni.map((a) => (
+            <div
+              key={a.id}
+              className="p-4 rounded-2xl border border-white/10 bg-white/5"
+            >
+              {editingId === a.id ? (
+                <>
+                  <input
+                    value={editNome}
+                    onChange={(e) => setEditNome(e.target.value)}
+                    className="w-full p-2 rounded bg-black border border-white/10 mb-2"
+                  />
 
-        {/* LOADING */}
-        {loading && (
-          <div className="space-y-3">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-pulse"
-              >
-                <div className="h-4 w-2/3 rounded bg-white/10" />
-                <div className="mt-3 h-3 w-1/3 rounded bg-white/10" />
-              </div>
-            ))}
-          </div>
-        )}
+                  <input
+                    type="number"
+                    value={editPunti}
+                    onChange={(e) => setEditPunti(Number(e.target.value))}
+                    className="w-full p-2 rounded bg-black border border-white/10 mb-2"
+                  />
 
-        {/* TAB: LISTA */}
-        {!loading && tab === "list" && !errorMsg && (
-          <section className="space-y-3 pb-10">
-            {sortedAzioni.map((a) => {
-              const title = a.nome ?? "Azione";
-              const pts = a.punti ?? 0;
-              const active = a.is_active ?? true;
+                  <button
+                    onClick={() => salvaModifica(a.id)}
+                    className="w-full bg-green-600 py-2 rounded"
+                  >
+                    Salva
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* 🔥 SOLO TITOLO */}
+                  <div className="font-bold text-lg break-words">
+                    {a.nome}
+                  </div>
 
-              return (
-                <article
-                  key={a.id}
-                  className={`rounded-2xl border p-4 ${
-                    active ? "border-white/10 bg-white/5" : "border-white/10 bg-white/3 opacity-60"
-                  }`}
-                >
-                  <div className="flex justify-end">
-  <Link
-    href="/"
-    className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-  >
-    ← Home
-  </Link>
-</div>
+                  <div className="text-sm text-white/60">
+                    {a.punti} pt
+                  </div>
 
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      {/* SOLO TITOLO: niente descrizione */}
-                      <div className="text-base font-extrabold leading-snug break-words">
-                        {title}
-                      </div>
-
-                      <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/80">
-                        <span className="font-semibold">Punti:</span>
-                        <span className="font-extrabold text-white">{pts}</span>
-                        {!active && <span className="ml-1">· disattiva</span>}
-                      </div>
-                    </div>
-
-                    {isAdmin && (
+                  {/* 🔹 BOTTONI ADMIN */}
+                  {isAdmin && (
+                    <div className="flex gap-2 mt-3">
                       <button
-                        onClick={() => startEdit(a)}
-                        className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs hover:bg-white/10"
+                        onClick={() => {
+                          setEditingId(a.id);
+                          setEditNome(a.nome);
+                          setEditPunti(a.punti);
+                        }}
+                        className="flex-1 bg-yellow-600 py-1 rounded text-sm"
                       >
                         Modifica
                       </button>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
 
-            {sortedAzioni.length === 0 && (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-                Nessuna azione trovata.
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* TAB: ADMIN */}
-        {!loading && tab === "admin" && (
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            {!isAdmin ? (
-              <div className="text-sm text-white/70">Area riservata admin.</div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold">Gestione Azioni</div>
-                    <div className="text-xs text-white/70">Aggiungi, modifica o elimina</div>
-                  </div>
-
-                  {editingId && (
-                    <button
-                      onClick={resetForm}
-                      className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs hover:bg-white/10"
-                    >
-                      Annulla
-                    </button>
-                  )}
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <label className="text-xs text-white/70">Titolo</label>
-                    <input
-                      value={nome}
-                      onChange={(e) => setNome(e.target.value)}
-                      placeholder="Es. Perde la voce"
-                      className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm outline-none focus:border-white/25"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-white/70">Punti</label>
-                      <input
-                        type="number"
-                        value={punti}
-                        onChange={(e) => setPunti(parseInt(e.target.value || "0", 10))}
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm outline-none focus:border-white/25"
-                      />
-                    </div>
-
-                    <div className="flex items-end justify-between rounded-xl border border-white/10 bg-black/40 px-3 py-2">
-                      <div>
-                        <div className="text-xs text-white/70">Attiva</div>
-                        <div className="text-sm font-semibold">{isActive ? "Sì" : "No"}</div>
-                      </div>
                       <button
-                        onClick={() => setIsActive((v) => !v)}
-                        className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs hover:bg-white/10"
+                        onClick={() => elimina(a.id)}
+                        className="flex-1 bg-red-600 py-1 rounded text-sm"
                       >
-                        Toggle
+                        Elimina
                       </button>
                     </div>
-                  </div>
-
-                  <button
-                    onClick={saveAction}
-                    className="w-full rounded-xl bg-white text-black px-4 py-3 text-sm font-bold hover:opacity-90"
-                  >
-                    {editingId ? "Salva modifiche" : "Aggiungi azione"}
-                  </button>
-
-                  {/* LISTA PER ELIMINARE AL VOLO */}
-                  <div className="mt-4 border-t border-white/10 pt-4">
-                    <div className="text-xs text-white/70 mb-2">Azioni esistenti</div>
-                    <div className="space-y-2">
-                      {sortedAzioni.map((a) => (
-                        <div
-                          key={a.id}
-                          className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2"
-                        >
-                          <div className="min-w-0 text-sm font-semibold break-words">
-                            {a.nome ?? "Azione"}
-                          </div>
-                          <div className="flex gap-2 shrink-0">
-                            <button
-                              onClick={() => startEdit(a)}
-                              className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs hover:bg-white/10"
-                            >
-                              Modifica
-                            </button>
-                            <button
-                              onClick={() => deleteAction(a.id)}
-                              className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs hover:bg-red-500/15"
-                            >
-                              Elimina
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {sortedAzioni.length === 0 && (
-                        <div className="text-sm text-white/60">Nessuna azione.</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-          </section>
-        )}
-      </div>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </main>
   );
 }
