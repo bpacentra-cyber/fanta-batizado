@@ -6,11 +6,19 @@ import { supabase } from "@/lib/supabase";
 
 type Squadra = {
   id: string;
-  nome: string;
+  nome_squadra: string;
+  owner_user_id: string;
+};
+
+type Profile = {
+  user_id: string;
+  is_admin: boolean;
+  is_founder: boolean;
 };
 
 export default function SquadrePage() {
   const [squadre, setSquadre] = useState<Squadra[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -21,20 +29,39 @@ export default function SquadrePage() {
       setLoading(true);
       setErrorMsg("");
 
-      const { data, error } = await supabase
+      // 1. prendi squadre
+      const { data: squadreData, error: err1 } = await supabase
         .from("squadre")
-        .select("id, nome")
-        .order("nome", { ascending: true });
+        .select("id, nome_squadra, owner_user_id")
+        .order("nome_squadra");
+
+      if (err1) {
+        setErrorMsg(err1.message);
+        setLoading(false);
+        return;
+      }
+
+      // 2. prendi profili
+      const { data: profiliData, error: err2 } = await supabase
+        .from("profiles")
+        .select("user_id, is_admin, is_founder");
+
+      if (err2) {
+        setErrorMsg(err2.message);
+        setLoading(false);
+        return;
+      }
+
+      // 3. crea mappa user_id -> profilo
+      const map: Record<string, Profile> = {};
+      (profiliData || []).forEach((p) => {
+        map[p.user_id] = p;
+      });
 
       if (!mounted) return;
 
-      if (error) {
-        setErrorMsg(error.message);
-        setSquadre([]);
-      } else {
-        setSquadre(data || []);
-      }
-
+      setSquadre(squadreData || []);
+      setProfiles(map);
       setLoading(false);
     }
 
@@ -49,7 +76,7 @@ export default function SquadrePage() {
     <main className="min-h-screen bg-neutral-950 text-white px-4 py-10">
       <div className="mx-auto w-full max-w-xl">
         {/* HEADER */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between">
           <h1 className="text-3xl font-extrabold tracking-tight">👥 Squadre</h1>
 
           <Link
@@ -60,55 +87,55 @@ export default function SquadrePage() {
           </Link>
         </div>
 
-        <p className="mt-2 text-sm text-white/70">
-          Visualizza tutte le squadre partecipanti.
-        </p>
-
         {/* LOADING */}
         {loading && (
-          <div className="mt-6 space-y-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="rounded-[22px] border border-white/10 bg-white/[0.06] p-4 animate-pulse"
-              >
-                <div className="h-4 w-2/3 rounded bg-white/10" />
-              </div>
-            ))}
-          </div>
+          <div className="mt-6 text-white/60">Caricamento...</div>
         )}
 
         {/* ERRORE */}
         {!loading && errorMsg && (
-          <div className="mt-6 rounded-[22px] border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
-            ❌ Errore nel caricamento: {errorMsg}
-          </div>
+          <div className="mt-6 text-red-400">{errorMsg}</div>
         )}
 
         {/* LISTA */}
         {!loading && !errorMsg && (
           <div className="mt-6 space-y-3">
-            {squadre.map((s) => (
-              <Link
-                key={s.id}
-                href={`/squadra/${s.id}`}
-                className="block rounded-[22px] border border-white/10 bg-white/[0.06] p-4 backdrop-blur transition hover:bg-white/[0.10]"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-base font-extrabold tracking-tight">
-                    {s.nome}
+            {squadre.map((s) => {
+              const profile = profiles[s.owner_user_id];
+
+              return (
+                <Link
+                  key={s.id}
+                  href={`/squadra/${s.id}`}
+                  className="block rounded-[22px] border border-white/10 bg-white/[0.06] p-4 hover:bg-white/[0.10]"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-extrabold text-lg">
+                        {s.nome_squadra}
+                      </div>
+
+                      {/* BADGE */}
+                      <div className="mt-1 flex gap-2">
+                        {profile?.is_admin && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-300">
+                            👑 Admin
+                          </span>
+                        )}
+
+                        {profile?.is_founder && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 border border-green-500/40 text-green-300">
+                            🔥 Founder
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-white/40">→</div>
                   </div>
-
-                  <div className="text-white/35 text-sm">→</div>
-                </div>
-              </Link>
-            ))}
-
-            {squadre.length === 0 && (
-              <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-4 text-white/70">
-                Nessuna squadra trovata.
-              </div>
-            )}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
