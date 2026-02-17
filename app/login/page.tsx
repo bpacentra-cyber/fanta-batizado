@@ -74,12 +74,11 @@ export default function LoginPage() {
     try {
       const redirectTo = `${window.location.origin}/auth/callback`;
 
-      const { error } = await supabase.auth.signInWithOtp({
+const { error } = await supabase.auth.signInWithOtp({
   email,
-  options: {
-    emailRedirectTo: `${window.location.origin}/auth/callback`,
-  },
+  options: { emailRedirectTo: redirectTo },
 });
+
 if (error) throw error;
 
 
