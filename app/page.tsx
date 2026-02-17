@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 function TopLeftNav() {
@@ -136,18 +136,60 @@ function Tile({
 }
 
 export default function HomePage() {
+  const router = useRouter();
+  const [authReady, setAuthReady] = useState(false);
+
+  // ✅ Questo è il pezzo che evita di “perdere il login”
+  useEffect(() => {
+    let mounted = true;
+
+    async function boot() {
+      const { data } = await supabase.auth.getSession();
+      const has = !!data.session;
+
+      if (!mounted) return;
+
+      if (!has) {
+        router.replace("/login");
+        return;
+      }
+
+      setAuthReady(true);
+    }
+
+    boot();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      // se qualcuno fa logout o la sessione sparisce
+      if (!session) router.replace("/login");
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [router]);
+
+  if (!authReady) {
+    return (
+      <main className="min-h-screen bg-neutral-950 text-white">
+        <div className="mx-auto max-w-3xl px-6 py-16 text-white/70">
+          Caricamento…
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
       <TopLeftNav />
 
       {/* HERO */}
       <section className="relative overflow-hidden">
-        {/* Background (se nel tuo progetto NON usi questa immagine, puoi sostituire src con quello che hai) */}
-       <div className="absolute inset-0">
-  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.15),rgba(0,0,0,0.78)_70%)]" />
-  <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/55 to-neutral-950" />
-</div>
-
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.15),rgba(0,0,0,0.78)_70%)]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/55 to-neutral-950" />
+        </div>
 
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -top-44 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-white/10 blur-3xl opacity-60" />
@@ -155,7 +197,6 @@ export default function HomePage() {
         </div>
 
         <div className="relative mx-auto w-full max-w-6xl px-6 pt-16 pb-10">
-          {/* Titolo con tamburo emoji */}
           <h1 className="mt-5 flex items-center gap-4 text-5xl sm:text-6xl font-extrabold tracking-tight">
             <span className="text-6xl sm:text-7xl drop-shadow-[0_0_18px_rgba(255,255,255,0.25)]">
               🪘
@@ -169,16 +210,15 @@ export default function HomePage() {
             ma che ora nessuno potrà più ignorare.
           </p>
 
-          {/* Mini stats */}
           <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl">
             <StatMini label="Budget" value="500 Dbr" sub="per squadra" />
-            <StatMini label="squadra" value="1–6" sub="membri" />
+            <StatMini label="Squadra" value="1–6" sub="membri" />
             <StatMini label="Obiettivo" value="+Punti" sub="bonus & malus" />
           </div>
         </div>
       </section>
 
-      {/* TILES: 2 righe (mercato/squadre) sotto (azioni/classifica) */}
+      {/* TILES */}
       <section className="mx-auto w-full max-w-6xl px-6 pb-14">
         <div className="grid grid-cols-2 gap-3 max-w-3xl">
           <Tile href="/mercato" icon="🪙" title="Mercato" note="crea la tua squadra" />
