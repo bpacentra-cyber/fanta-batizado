@@ -2,8 +2,39 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-white/85 backdrop-blur">
+      {children}
+    </span>
+  );
+}
+
+function RoleBadge({
+  isAdmin,
+  isFounder,
+}: {
+  isAdmin: boolean;
+  isFounder: boolean;
+}) {
+  if (isAdmin) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-extrabold text-amber-100">
+        👑 ADMIN SUPREMO
+      </span>
+    );
+  }
+  if (isFounder) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-green-400/30 bg-green-400/10 px-3 py-1 text-xs font-extrabold text-green-100">
+        🔥 FOUNDERS
+      </span>
+    );
+  }
+  return null;
+}
 
 function TopLeftNav() {
   const [hasSession, setHasSession] = useState(false);
@@ -136,49 +167,46 @@ function Tile({
 }
 
 export default function HomePage() {
-  const router = useRouter();
-  const [authReady, setAuthReady] = useState(false);
+  const [role, setRole] = useState<{ isAdmin: boolean; isFounder: boolean } | null>(
+    null
+  );
 
-  // ✅ Questo è il pezzo che evita di “perdere il login”
   useEffect(() => {
     let mounted = true;
 
-    async function boot() {
+    async function loadRole() {
       const { data } = await supabase.auth.getSession();
-      const has = !!data.session;
+      const user = data.session?.user;
 
       if (!mounted) return;
 
-      if (!has) {
-        router.replace("/login");
+      if (!user) {
+        setRole(null);
         return;
       }
 
-      setAuthReady(true);
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("is_admin, is_founder")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      setRole({
+        isAdmin: !!p?.is_admin,
+        isFounder: !!p?.is_founder,
+      });
     }
 
-    boot();
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      // se qualcuno fa logout o la sessione sparisce
-      if (!session) router.replace("/login");
-    });
+    loadRole();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => loadRole());
 
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
     };
-  }, [router]);
-
-  if (!authReady) {
-    return (
-      <main className="min-h-screen bg-neutral-950 text-white">
-        <div className="mx-auto max-w-3xl px-6 py-16 text-white/70">
-          Caricamento…
-        </div>
-      </main>
-    );
-  }
+  }, []);
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
@@ -197,6 +225,17 @@ export default function HomePage() {
         </div>
 
         <div className="relative mx-auto w-full max-w-6xl px-6 pt-16 pb-10">
+          {/* Pills + ruolo */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill>Fanta Batizado</Pill>
+            <Pill>Home</Pill>
+            {role ? (
+              <RoleBadge isAdmin={role.isAdmin} isFounder={role.isFounder} />
+            ) : (
+              <Pill>Non loggato</Pill>
+            )}
+          </div>
+
           <h1 className="mt-5 flex items-center gap-4 text-5xl sm:text-6xl font-extrabold tracking-tight">
             <span className="text-6xl sm:text-7xl drop-shadow-[0_0_18px_rgba(255,255,255,0.25)]">
               🪘
@@ -212,7 +251,7 @@ export default function HomePage() {
 
           <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl">
             <StatMini label="Budget" value="500 Dbr" sub="per squadra" />
-            <StatMini label="Squadra" value="1–6" sub="membri" />
+            <StatMini label="squadra" value="1–6" sub="membri" />
             <StatMini label="Obiettivo" value="+Punti" sub="bonus & malus" />
           </div>
         </div>
