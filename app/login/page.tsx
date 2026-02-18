@@ -45,13 +45,14 @@ export default function LoginPage() {
   const [msg, setMsg] = useState<string>("");
   const [err, setErr] = useState<string>("");
 
-  // Se sei già loggato, vai a home
+  // ✅ Se già loggato, vai a home (così non rifai login)
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
+
       if (data.session?.user) router.replace("/");
     })();
 
@@ -71,19 +72,21 @@ export default function LoginPage() {
     }
 
     setSending(true);
+
     try {
       const redirectTo = `${window.location.origin}/auth/callback`;
 
-const { error } = await supabase.auth.signInWithOtp({
-  email,
-  options: { emailRedirectTo: redirectTo },
-});
+      const { error } = await supabase.auth.signInWithOtp({
+        email: e,
+        options: {
+          emailRedirectTo: redirectTo,
+        },
+      });
 
-if (error) throw error;
-
+      if (error) throw error;
 
       setMsg(
-        "📩 Magic Link inviato! Apri la mail e clicca il link. (Se non arriva, controlla spam / promozioni.)"
+        "📩 Magic Link inviato! Apri la mail e clicca il link. (Controlla spam/promozioni.)"
       );
       setEmail("");
     } catch (e: any) {
@@ -113,18 +116,15 @@ if (error) throw error;
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-                🚪 Entra nel gioco <span className="text-white/70"></span>
+                🚪 Entra nel gioco
               </h1>
 
               <p className="text-white/70 leading-relaxed max-w-xl">
-                Non serve dirti cosa dovrai fare...<b>già sai</b>
-                <br />
-                <br />
-                Con il Magic Link sarai <b>ufficialmente</b> dentro il <b>Fanta Batizado.</b> 🔥
+                Con il Magic Link sarai <b>ufficialmente</b> dentro il{" "}
+                <b>Fanta Batizado</b>. 🔥
               </p>
             </div>
 
-            {/* NAV in alto a destra */}
             <div className="flex flex-col gap-2 shrink-0">
               <Link
                 href="/"
@@ -148,7 +148,9 @@ if (error) throw error;
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* LOGIN BOX */}
           <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-5 sm:p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur">
-            <h2 className="text-xl font-extrabold tracking-tight">🔐 Login (Magic Link)</h2>
+            <h2 className="text-xl font-extrabold tracking-tight">
+              🔐 Login (Magic Link)
+            </h2>
             <p className="mt-2 text-white/70">
               Inserisci la tua email e ricevi il link di accesso.
             </p>
@@ -185,28 +187,28 @@ if (error) throw error;
               ) : null}
 
               <div className="text-xs text-white/55 leading-relaxed">
-                Tip da Instrutor Frodo: se il link non arriva, guarda in <b>Spam</b>.
-                <br />
-                E no: non puoi entrare “a forza”. (Ci abbiamo provato)
+                Tip da Instrutor Frodo: se il link non arriva, guarda in{" "}
+                <b>Spam</b>. 😄
               </div>
             </div>
           </section>
 
           {/* REGOLAMENTO PREVIEW */}
           <div className="space-y-5">
-            <Card title="Mini-regolamento (leggi il regolamento completo)" icon="📜">
+            <Card title="Mini-regolamento" icon="📜">
               <ul className="mt-1 list-disc pl-5 space-y-1">
                 <li>
-                  💰 Hai <b>500 Dbr</b> e una missione: creare la squadra più devastante.
+                  💰 Hai <b>500 Dbr</b> e una missione: creare la squadra più
+                  devastante.
                 </li>
                 <li>
                   🤸‍♂️ Scegli <b>1–6 membri</b>. Il budget scala mentre scegli.
                 </li>
                 <li>
-                  👑 <b>Admin Supremo:</b> Instrutor Frodo. I pianti valgono, ma non cambiano le regole.
+                  👑 <b>Admin Supremo:</b> Instrutor Frodo.
                 </li>
                 <li>
-                 ➕➖ Bonus & malus li vedi nella sezione <b>Azioni</b>.
+                  ➕➖ Bonus & malus li vedi nella sezione <b>Azioni</b>.
                 </li>
               </ul>
 
@@ -228,13 +230,9 @@ if (error) throw error;
 
             <Card title="Disclaimer importantissimo" icon="🚨">
               <p>
-                <b>Prima regola del FANTA BATIZADO:</b> NON parlare mai del Fanta Batizado.
+                <b>Prima regola:</b> NON parlare mai del Fanta Batizado.
                 <br />
                 <b>Seconda regola:</b> Ricordati la prima.
-              </p>
-              <p className="mt-2 text-white/75">
-                Se sei qui, vuol dire che sei nella “cerchia ristretta”.
-                Comportati di conseguenza. 😎
               </p>
             </Card>
           </div>

@@ -4,13 +4,20 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-/* =========================
-   NAV TOP LEFT + BADGE
-========================= */
+function RoleBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-white/85 backdrop-blur">
+      {children}
+    </span>
+  );
+}
+
 function TopLeftNav() {
   const [hasSession, setHasSession] = useState(false);
   const [canScore, setCanScore] = useState(false);
-  const [roleBadge, setRoleBadge] = useState<null | "admin" | "founder">(null);
+
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isFounder, setIsFounder] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -25,7 +32,8 @@ function TopLeftNav() {
 
       if (!user) {
         setCanScore(false);
-        setRoleBadge(null);
+        setIsAdmin(false);
+        setIsFounder(false);
         return;
       }
 
@@ -37,18 +45,15 @@ function TopLeftNav() {
 
       if (!mounted) return;
 
-      const isAdmin = !!p?.is_admin;
-      const isFounder = !!p?.is_founder;
+      const admin = !!p?.is_admin;
+      const founder = !!p?.is_founder;
 
-      setCanScore(isAdmin || isFounder);
-
-      if (isAdmin) setRoleBadge("admin");
-      else if (isFounder) setRoleBadge("founder");
-      else setRoleBadge(null);
+      setIsAdmin(admin);
+      setIsFounder(founder);
+      setCanScore(admin || founder);
     }
 
     load();
-
     const { data: sub } = supabase.auth.onAuthStateChange(() => load());
 
     return () => {
@@ -58,9 +63,9 @@ function TopLeftNav() {
   }, []);
 
   return (
-    <>
-      {/* NAV */}
-      <div className="fixed left-4 top-4 z-50 flex flex-wrap gap-2">
+    <div className="fixed left-4 top-4 z-50 flex flex-col gap-2">
+      {/* Riga bottoni */}
+      <div className="flex flex-wrap gap-2">
         <Link
           href="/"
           className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 backdrop-blur"
@@ -78,43 +83,33 @@ function TopLeftNav() {
         <Link
           href={hasSession ? "/profile" : "/login"}
           className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 backdrop-blur"
+          title={hasSession ? "Vai al profilo" : "Vai al login"}
         >
           👤 Profilo
         </Link>
 
-        {canScore && (
+        {canScore ? (
           <Link
             href="/admin/punteggi"
             className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 backdrop-blur"
+            title="Assegna azioni ai partecipanti"
           >
             🎯 Punteggi
           </Link>
-        )}
+        ) : null}
       </div>
 
-      {/* BADGE */}
-      {roleBadge && (
-        <div className="fixed right-4 top-4 z-50">
-          {roleBadge === "admin" && (
-            <div className="rounded-full bg-yellow-500/20 border border-yellow-400 px-4 py-2 text-xs font-bold text-yellow-300 shadow">
-              👑 ADMIN SUPREMO
-            </div>
-          )}
-
-          {roleBadge === "founder" && (
-            <div className="rounded-full bg-purple-500/20 border border-purple-400 px-4 py-2 text-xs font-bold text-purple-300 shadow">
-              ⭐ FOUNDER
-            </div>
-          )}
+      {/* Riga badge (sotto i bottoni) */}
+      {(isAdmin || isFounder) && (
+        <div className="flex flex-wrap gap-2">
+          {isAdmin ? <RoleBadge>👑 Admin Supremo</RoleBadge> : null}
+          {!isAdmin && isFounder ? <RoleBadge>🫡 Founder</RoleBadge> : null}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
-/* =========================
-   MINI STAT
-========================= */
 function StatMini({
   label,
   value,
@@ -133,9 +128,6 @@ function StatMini({
   );
 }
 
-/* =========================
-   TILE
-========================= */
 function Tile({
   href,
   icon,
@@ -162,20 +154,13 @@ function Tile({
       </div>
 
       <div className="mt-3">
-        <div className="text-base font-extrabold tracking-tight">
-          {title}
-        </div>
-        <div className="mt-1 text-sm text-white/65 leading-snug">
-          {note}
-        </div>
+        <div className="text-base font-extrabold tracking-tight">{title}</div>
+        <div className="mt-1 text-sm text-white/65 leading-snug">{note}</div>
       </div>
     </Link>
   );
 }
 
-/* =========================
-   HOME PAGE
-========================= */
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
@@ -218,7 +203,7 @@ export default function HomePage() {
       {/* TILES */}
       <section className="mx-auto w-full max-w-6xl px-6 pb-14">
         <div className="grid grid-cols-2 gap-3 max-w-3xl">
-          <Tile href="/mercato" icon="🪙" title="Mercato" note="crea la tua squadra" />
+          <Tile href="/mercato" icon="🪙" title="Mercato" note="Crea la tua squadra" />
           <Tile href="/squadre" icon="👥" title="Squadre" note="Vedi gli altri team" />
           <Tile href="/azioni" icon="⚡" title="Azioni" note="Bonus / malus" />
           <Tile href="/classifica" icon="🏆" title="Classifica" note="Podio finale" />
