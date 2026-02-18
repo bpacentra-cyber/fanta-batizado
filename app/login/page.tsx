@@ -42,26 +42,27 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
+
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+
   const [msg, setMsg] = useState<string>("");
   const [err, setErr] = useState<string>("");
 
-  // ✅ Se già loggato, vai a home (così non rifai login)
+  // Se già loggato, vai a home
   useEffect(() => {
     let mounted = true;
-
     (async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
-
       if (data.session?.user) router.replace("/");
     })();
-
     return () => {
       mounted = false;
     };
   }, [router]);
 
-  async function sendMagicLink() {
+  async function sendOtp() {
     setErr("");
     setMsg("");
 
@@ -72,27 +73,58 @@ export default function LoginPage() {
     }
 
     setSending(true);
-
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
-
+      // IMPORTANTISSIMO: NON usiamo emailRedirectTo qui.
+      // Così l'utente non deve cliccare un link: riceve un codice e lo incolla nell'app.
       const { error } = await supabase.auth.signInWithOtp({
         email: e,
         options: {
-          emailRedirectTo: redirectTo,
+          shouldCreateUser: true,
         },
       });
 
       if (error) throw error;
 
-      setMsg(
-        "📩 Magic Link inviato! Apri la mail e clicca il link. (Controlla spam/promozioni.)"
-      );
-      setEmail("");
+      setMsg("📩 Codice inviato! Apri la mail, copia il codice a 6 cifre e incollalo qui sotto.");
     } catch (e: any) {
-      setErr(e?.message ?? "Errore durante l’invio del Magic Link.");
+      setErr(e?.message ?? "Errore durante l’invio del codice.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function verifyOtp() {
+    setErr("");
+    setMsg("");
+
+    const e = email.trim();
+    const t = code.trim();
+
+    if (!e || !e.includes("@")) {
+      setErr("Inserisci prima la mail.");
+      return;
+    }
+    if (!t || t.length < 6) {
+      setErr("Inserisci il codice (di solito 6 cifre).");
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: e,
+        token: t,
+        type: "email",
+      });
+
+      if (error) throw error;
+
+      setMsg("✅ Accesso effettuato! Ti porto alla Home…");
+      router.replace("/");
+    } catch (e: any) {
+      setErr(e?.message ?? "Codice non valido o scaduto. Richiedine uno nuovo.");
+    } finally {
+      setVerifying(false);
     }
   }
 
@@ -112,7 +144,7 @@ export default function LoginPage() {
               <div className="flex flex-wrap gap-2">
                 <Badge>Fanta Batizado</Badge>
                 <Badge>Accesso</Badge>
-                <Badge>Magic Link ✉️</Badge>
+                <Badge>Codice OTP 🔐</Badge>
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
@@ -120,8 +152,9 @@ export default function LoginPage() {
               </h1>
 
               <p className="text-white/70 leading-relaxed max-w-xl">
-                Con il Magic Link sarai <b>ufficialmente</b> dentro il{" "}
-                <b>Fanta Batizado</b>. 🔥
+                Per evitare bug da “app su Home”, qui si entra con <b>codice</b>.
+                <br />
+                È più solido del magic link (fidati). 😎
               </p>
             </div>
 
@@ -148,11 +181,9 @@ export default function LoginPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* LOGIN BOX */}
           <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-5 sm:p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur">
-            <h2 className="text-xl font-extrabold tracking-tight">
-              🔐 Login (Magic Link)
-            </h2>
+            <h2 className="text-xl font-extrabold tracking-tight">🔐 Login (Codice)</h2>
             <p className="mt-2 text-white/70">
-              Inserisci la tua email e ricevi il link di accesso.
+              Inserisci la tua email → ricevi un <b>codice</b> → incollalo → sei dentro.
             </p>
 
             <div className="mt-5 space-y-3">
@@ -167,12 +198,35 @@ export default function LoginPage() {
               />
 
               <button
-                onClick={sendMagicLink}
+                onClick={sendOtp}
                 disabled={sending}
                 className="w-full rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90 disabled:opacity-60"
               >
-                {sending ? "Invio in corso…" : "📩 Invia Magic Link"}
+                {sending ? "Invio in corso…" : "📩 Invia codice"}
               </button>
+
+              <div className="mt-2 rounded-2xl border border-white/10 bg-black/30 p-4">
+                <label className="block text-sm text-white/75">Codice ricevuto (6 cifre)</label>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="123456"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-white/20"
+                  inputMode="numeric"
+                />
+
+                <button
+                  onClick={verifyOtp}
+                  disabled={verifying}
+                  className="mt-3 w-full rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-semibold hover:bg-white/15 disabled:opacity-60"
+                >
+                  {verifying ? "Verifica…" : "✅ Verifica ed entra"}
+                </button>
+
+                <div className="mt-3 text-xs text-white/55 leading-relaxed">
+                  Tip: se non arriva, controlla <b>Spam</b>. Se scade, richiedi un nuovo codice.
+                </div>
+              </div>
 
               {err ? (
                 <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
@@ -185,11 +239,6 @@ export default function LoginPage() {
                   ✅ {msg}
                 </div>
               ) : null}
-
-              <div className="text-xs text-white/55 leading-relaxed">
-                Tip da Instrutor Frodo: se il link non arriva, guarda in{" "}
-                <b>Spam</b>. 😄
-              </div>
             </div>
           </section>
 
@@ -197,19 +246,10 @@ export default function LoginPage() {
           <div className="space-y-5">
             <Card title="Mini-regolamento" icon="📜">
               <ul className="mt-1 list-disc pl-5 space-y-1">
-                <li>
-                  💰 Hai <b>500 Dbr</b> e una missione: creare la squadra più
-                  devastante.
-                </li>
-                <li>
-                  🤸‍♂️ Scegli <b>1–6 membri</b>. Il budget scala mentre scegli.
-                </li>
-                <li>
-                  👑 <b>Admin Supremo:</b> Instrutor Frodo.
-                </li>
-                <li>
-                  ➕➖ Bonus & malus li vedi nella sezione <b>Azioni</b>.
-                </li>
+                <li>💰 Hai <b>500 Dbr</b> e una missione: creare la squadra più devastante.</li>
+                <li>🤸‍♂️ Scegli <b>1–6 membri</b>. Il budget scala mentre scegli.</li>
+                <li>👑 <b>Admin Supremo:</b> Instrutor Frodo.</li>
+                <li>➕➖ Bonus & malus li vedi nella sezione <b>Azioni</b>.</li>
               </ul>
 
               <div className="mt-4 flex flex-wrap gap-2">
