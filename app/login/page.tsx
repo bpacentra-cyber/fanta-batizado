@@ -190,9 +190,9 @@ export default function LoginPage() {
 
           <Card title="🚨 Disclaimer" icon="😈">
             <p>
-              Non è un gioco.
+              <b>Prima regola del Fanta Batizado:</b> NON parlare mai del Fanta Batizado
               <br />
-              <b>È una questione di onore.</b>
+              <b>Seconda regola del Fanta Batizado:</b> ricordati la prima!
             </p>
           </Card>
         </div>
