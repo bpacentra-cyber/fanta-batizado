@@ -4,41 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-function Pill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-white/85 backdrop-blur">
-      {children}
-    </span>
-  );
-}
-
-function RoleBadge({
-  isAdmin,
-  isFounder,
-}: {
-  isAdmin: boolean;
-  isFounder: boolean;
-}) {
-  if (isAdmin) {
-    return (
-      <span className="inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-extrabold text-amber-100">
-        👑 ADMIN SUPREMO
-      </span>
-    );
-  }
-  if (isFounder) {
-    return (
-      <span className="inline-flex items-center rounded-full border border-green-400/30 bg-green-400/10 px-3 py-1 text-xs font-extrabold text-green-100">
-        🔥 FOUNDERS
-      </span>
-    );
-  }
-  return null;
-}
-
+/* =========================
+   NAV TOP LEFT + BADGE
+========================= */
 function TopLeftNav() {
   const [hasSession, setHasSession] = useState(false);
   const [canScore, setCanScore] = useState(false);
+  const [roleBadge, setRoleBadge] = useState<null | "admin" | "founder">(null);
 
   useEffect(() => {
     let mounted = true;
@@ -53,6 +25,7 @@ function TopLeftNav() {
 
       if (!user) {
         setCanScore(false);
+        setRoleBadge(null);
         return;
       }
 
@@ -66,10 +39,16 @@ function TopLeftNav() {
 
       const isAdmin = !!p?.is_admin;
       const isFounder = !!p?.is_founder;
+
       setCanScore(isAdmin || isFounder);
+
+      if (isAdmin) setRoleBadge("admin");
+      else if (isFounder) setRoleBadge("founder");
+      else setRoleBadge(null);
     }
 
     load();
+
     const { data: sub } = supabase.auth.onAuthStateChange(() => load());
 
     return () => {
@@ -79,42 +58,63 @@ function TopLeftNav() {
   }, []);
 
   return (
-    <div className="fixed left-4 top-4 z-50 flex flex-wrap gap-2">
-      <Link
-        href="/"
-        className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 backdrop-blur"
-      >
-        🏠 Home
-      </Link>
-
-      <Link
-        href="/regolamento"
-        className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 backdrop-blur"
-      >
-        📜 Regolamento
-      </Link>
-
-      <Link
-        href={hasSession ? "/profile" : "/login"}
-        className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 backdrop-blur"
-        title={hasSession ? "Vai al profilo" : "Vai al login"}
-      >
-        👤 Profilo
-      </Link>
-
-      {canScore ? (
+    <>
+      {/* NAV */}
+      <div className="fixed left-4 top-4 z-50 flex flex-wrap gap-2">
         <Link
-          href="/admin/punteggi"
+          href="/"
           className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 backdrop-blur"
-          title="Assegna azioni ai partecipanti"
         >
-          🎯 Punteggi
+          🏠 Home
         </Link>
-      ) : null}
-    </div>
+
+        <Link
+          href="/regolamento"
+          className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 backdrop-blur"
+        >
+          📜 Regolamento
+        </Link>
+
+        <Link
+          href={hasSession ? "/profile" : "/login"}
+          className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 backdrop-blur"
+        >
+          👤 Profilo
+        </Link>
+
+        {canScore && (
+          <Link
+            href="/admin/punteggi"
+            className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 backdrop-blur"
+          >
+            🎯 Punteggi
+          </Link>
+        )}
+      </div>
+
+      {/* BADGE */}
+      {roleBadge && (
+        <div className="fixed right-4 top-4 z-50">
+          {roleBadge === "admin" && (
+            <div className="rounded-full bg-yellow-500/20 border border-yellow-400 px-4 py-2 text-xs font-bold text-yellow-300 shadow">
+              👑 ADMIN SUPREMO
+            </div>
+          )}
+
+          {roleBadge === "founder" && (
+            <div className="rounded-full bg-purple-500/20 border border-purple-400 px-4 py-2 text-xs font-bold text-purple-300 shadow">
+              ⭐ FOUNDER
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 
+/* =========================
+   MINI STAT
+========================= */
 function StatMini({
   label,
   value,
@@ -133,6 +133,9 @@ function StatMini({
   );
 }
 
+/* =========================
+   TILE
+========================= */
 function Tile({
   href,
   icon,
@@ -159,55 +162,21 @@ function Tile({
       </div>
 
       <div className="mt-3">
-        <div className="text-base font-extrabold tracking-tight">{title}</div>
-        <div className="mt-1 text-sm text-white/65 leading-snug">{note}</div>
+        <div className="text-base font-extrabold tracking-tight">
+          {title}
+        </div>
+        <div className="mt-1 text-sm text-white/65 leading-snug">
+          {note}
+        </div>
       </div>
     </Link>
   );
 }
 
+/* =========================
+   HOME PAGE
+========================= */
 export default function HomePage() {
-  const [role, setRole] = useState<{ isAdmin: boolean; isFounder: boolean } | null>(
-    null
-  );
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadRole() {
-      const { data } = await supabase.auth.getSession();
-      const user = data.session?.user;
-
-      if (!mounted) return;
-
-      if (!user) {
-        setRole(null);
-        return;
-      }
-
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("is_admin, is_founder")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!mounted) return;
-
-      setRole({
-        isAdmin: !!p?.is_admin,
-        isFounder: !!p?.is_founder,
-      });
-    }
-
-    loadRole();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => loadRole());
-
-    return () => {
-      mounted = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
-
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
       <TopLeftNav />
@@ -225,17 +194,6 @@ export default function HomePage() {
         </div>
 
         <div className="relative mx-auto w-full max-w-6xl px-6 pt-16 pb-10">
-          {/* Pills + ruolo */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Pill>Fanta Batizado</Pill>
-            <Pill>Home</Pill>
-            {role ? (
-              <RoleBadge isAdmin={role.isAdmin} isFounder={role.isFounder} />
-            ) : (
-              <Pill>Non loggato</Pill>
-            )}
-          </div>
-
           <h1 className="mt-5 flex items-center gap-4 text-5xl sm:text-6xl font-extrabold tracking-tight">
             <span className="text-6xl sm:text-7xl drop-shadow-[0_0_18px_rgba(255,255,255,0.25)]">
               🪘
@@ -251,7 +209,7 @@ export default function HomePage() {
 
           <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl">
             <StatMini label="Budget" value="500 Dbr" sub="per squadra" />
-            <StatMini label="squadra" value="1–6" sub="membri" />
+            <StatMini label="Squadra" value="1–6" sub="membri" />
             <StatMini label="Obiettivo" value="+Punti" sub="bonus & malus" />
           </div>
         </div>
