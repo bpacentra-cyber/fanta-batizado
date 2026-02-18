@@ -1,21 +1,22 @@
-import type { Metadata } from "next";
 import "./globals.css";
+import type { Metadata } from "next";
+import AuthBootstrap from "./AuthBootstrap";
 
 export const metadata: Metadata = {
   title: "Fanta Batizado",
-  description: "App by Instrutor Frodo",
+  description: "Fanta Batizado",
 };
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode;
-}) {
-  // ✅ IMPORTANTISSIMO: qui NON deve esserci nessun controllo sessione / redirect.
-  // Le pagine che richiedono login si gestiscono DENTRO alle singole page.tsx (come già fai).
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="it">
-      <body>{children}</body>
+      <body>
+        {/* ✅ mantiene la sessione viva e la refresh-a quando riaprono l’app */}
+        <AuthBootstrap />
+        {children}
+      </body>
     </html>
   );
 }
