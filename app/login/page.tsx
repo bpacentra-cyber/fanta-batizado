@@ -23,14 +23,14 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-5 sm:p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur">
+    <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-5 sm:p-6 shadow backdrop-blur">
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/30 text-xl">
           {icon}
         </div>
         <div className="min-w-0">
-          <h2 className="text-xl font-extrabold tracking-tight">{title}</h2>
-          <div className="mt-2 text-white/80 leading-relaxed">{children}</div>
+          <h2 className="text-xl font-extrabold">{title}</h2>
+          <div className="mt-2 text-white/80">{children}</div>
         </div>
       </div>
     </section>
@@ -42,252 +42,159 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
 
-  const [code, setCode] = useState("");
-  const [verifying, setVerifying] = useState(false);
-
-  const [msg, setMsg] = useState<string>("");
-  const [err, setErr] = useState<string>("");
-
-  // Se già loggato, vai a home
+  // Se già loggato → home
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
-      if (data.session?.user) router.replace("/");
+
+      if (data.session?.user) {
+        router.replace("/");
+      }
     })();
+
     return () => {
       mounted = false;
     };
   }, [router]);
 
-  async function sendOtp() {
+  async function sendMagicLink() {
     setErr("");
     setMsg("");
 
-    const e = email.trim();
-    if (!e || !e.includes("@")) {
+    if (!email.includes("@")) {
       setErr("Inserisci una mail valida 👀");
       return;
     }
 
     setSending(true);
+
     try {
-      // IMPORTANTISSIMO: NON usiamo emailRedirectTo qui.
-      // Così l'utente non deve cliccare un link: riceve un codice e lo incolla nell'app.
+      const redirectTo = `${window.location.origin}/auth/callback`;
+
       const { error } = await supabase.auth.signInWithOtp({
-        email: e,
+        email,
         options: {
-          shouldCreateUser: true,
+          emailRedirectTo: redirectTo,
         },
       });
 
       if (error) throw error;
 
-      setMsg("📩 Codice inviato! Apri la mail, copia il codice a 6 cifre e incollalo qui sotto.");
+      setMsg("📩 Controlla la mail e clicca il link!");
+      setEmail("");
     } catch (e: any) {
-      setErr(e?.message ?? "Errore durante l’invio del codice.");
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function verifyOtp() {
-    setErr("");
-    setMsg("");
-
-    const e = email.trim();
-    const t = code.trim();
-
-    if (!e || !e.includes("@")) {
-      setErr("Inserisci prima la mail.");
-      return;
-    }
-    if (!t || t.length < 6) {
-      setErr("Inserisci il codice (di solito 6 cifre).");
-      return;
+      setErr(e.message);
     }
 
-    setVerifying(true);
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: e,
-        token: t,
-        type: "email",
-      });
-
-      if (error) throw error;
-
-      setMsg("✅ Accesso effettuato! Ti porto alla Home…");
-      router.replace("/");
-    } catch (e: any) {
-      setErr(e?.message ?? "Codice non valido o scaduto. Richiedine uno nuovo.");
-    } finally {
-      setVerifying(false);
-    }
+    setSending(false);
   }
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
-      {/* HERO */}
-      <div className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-40 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-white/10 blur-3xl opacity-60" />
-          <div className="absolute -bottom-56 right-[-120px] h-[520px] w-[520px] rounded-full bg-white/5 blur-3xl opacity-60" />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-transparent" />
+      {/* HEADER */}
+      <div className="mx-auto max-w-5xl px-6 pt-10 pb-6 flex justify-between items-start">
+        <div>
+          <h1 className="text-4xl font-extrabold">🚪 Login</h1>
+          <p className="text-white/70 mt-2">
+            Entra nel <b>Fanta Batizado</b>
+          </p>
         </div>
 
-        <div className="relative mx-auto w-full max-w-5xl px-6 pt-10 pb-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <Badge>Fanta Batizado</Badge>
-                <Badge>Accesso</Badge>
-                <Badge>Codice OTP 🔐</Badge>
-              </div>
+        <div className="flex flex-col gap-2">
+          <Link
+            href="/"
+            className="rounded-2xl border border-white/15 px-4 py-2 text-sm"
+          >
+            ← Home
+          </Link>
 
-              <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-                🚪 Entra nel gioco
-              </h1>
-
-              <p className="text-white/70 leading-relaxed max-w-xl">
-                Per evitare bug da “app su Home”, qui si entra con <b>codice</b>.
-                <br />
-                È più solido del magic link (fidati). 😎
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 shrink-0">
-              <Link
-                href="/"
-                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-              >
-                ← Home
-              </Link>
-              <Link
-                href="/regolamento"
-                className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90"
-              >
-                📜 Regolamento
-              </Link>
-            </div>
-          </div>
+          <Link
+            href="/regolamento"
+            className="rounded-2xl bg-white text-black px-4 py-2 text-sm font-semibold"
+          >
+            📜 Regolamento
+          </Link>
         </div>
       </div>
 
       {/* CONTENT */}
-      <div className="mx-auto w-full max-w-5xl px-6 pb-14">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* LOGIN BOX */}
-          <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-5 sm:p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur">
-            <h2 className="text-xl font-extrabold tracking-tight">🔐 Login (Codice)</h2>
-            <p className="mt-2 text-white/70">
-              Inserisci la tua email → ricevi un <b>codice</b> → incollalo → sei dentro.
-            </p>
+      <div className="mx-auto max-w-5xl px-6 pb-14 grid grid-cols-1 lg:grid-cols-2 gap-5">
+        
+        {/* LOGIN */}
+        <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-6">
+          <h2 className="text-xl font-extrabold">🔐 Accesso</h2>
 
-            <div className="mt-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-100">
-  ⚠️ <b>Se hai aggiunto l’app alla Home</b> (iPhone/Android), entra usando il <b>CODICE</b> qui sopra.
-  <br />
-  I magic link aperti dalla mail a volte loggano “fuori” dall’app e poi sembra che ti chieda il login ogni volta.
-</div>
+          <p className="mt-2 text-white/70">
+            Inserisci la tua email e riceverai un link per entrare.
+          </p>
 
-
-            <div className="mt-5 space-y-3">
-              <label className="block text-sm text-white/75">Email</label>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="nome@esempio.com"
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-white/20"
-                autoComplete="email"
-                inputMode="email"
-              />
-
-              <button
-                onClick={sendOtp}
-                disabled={sending}
-                className="w-full rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90 disabled:opacity-60"
-              >
-                {sending ? "Invio in corso…" : "📩 Invia codice"}
-              </button>
-
-              <div className="mt-2 rounded-2xl border border-white/10 bg-black/30 p-4">
-                <label className="block text-sm text-white/75">Codice ricevuto (6 cifre)</label>
-                <input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="123456"
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-white/20"
-                  inputMode="numeric"
-                />
-
-                <button
-                  onClick={verifyOtp}
-                  disabled={verifying}
-                  className="mt-3 w-full rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-semibold hover:bg-white/15 disabled:opacity-60"
-                >
-                  {verifying ? "Verifica…" : "✅ Verifica ed entra"}
-                </button>
-
-                <div className="mt-3 text-xs text-white/55 leading-relaxed">
-                  Tip: se non arriva, controlla <b>Spam</b>. Se scade, richiedi un nuovo codice.
-                </div>
-              </div>
-
-              {err ? (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
-                  ❌ {err}
-                </div>
-              ) : null}
-
-              {msg ? (
-                <div className="rounded-2xl border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-100">
-                  ✅ {msg}
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          {/* REGOLAMENTO PREVIEW */}
-          <div className="space-y-5">
-            <Card title="Mini-regolamento" icon="📜">
-              <ul className="mt-1 list-disc pl-5 space-y-1">
-                <li>💰 Hai <b>500 Dbr</b> e una missione: creare la squadra più devastante.</li>
-                <li>🤸‍♂️ Scegli <b>1–6 membri</b>. Il budget scala mentre scegli.</li>
-                <li>👑 <b>Admin Supremo:</b> Instrutor Frodo.</li>
-                <li>➕➖ Bonus & malus li vedi nella sezione <b>Azioni</b>.</li>
-              </ul>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link
-                  href="/regolamento"
-                  className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-                >
-                  Vai a Regolamento →
-                </Link>
-                <Link
-                  href="/azioni"
-                  className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-                >
-                  Vedi Azioni →
-                </Link>
-              </div>
-            </Card>
-
-            <Card title="Disclaimer importantissimo" icon="🚨">
-              <p>
-                <b>Prima regola:</b> NON parlare mai del Fanta Batizado.
-                <br />
-                <b>Seconda regola:</b> Ricordati la prima.
-              </p>
-            </Card>
+          {/* ⚠️ AVVISO IMPORTANTE PER TUTTI */}
+          <div className="mt-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-100">
+            ⚠️ <b>IMPORTANTE</b>
+            <br />
+            Se apri il link dalla mail e poi esci dall'app, potrebbe chiederti di fare login di nuovo.
+            <br /><br />
+            👉 Per evitare questo:
+            <br />
+            1. Apri il link della mail  
+            <br />
+            2. Entra nell'app  
+            <br />
+            3. Poi usa sempre <b>lo stesso browser</b>  
+            <br /><br />
+            ⚡ Se aggiungi l’app alla Home, usa sempre quel browser.
           </div>
-        </div>
 
-        <div className="mt-10 flex items-center justify-between text-xs text-white/45">
-          <span>© Fanta Batizado</span>
-          <span>App by Instrutor Frodo</span>
+          <div className="mt-5 space-y-3">
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="nome@email.com"
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3"
+            />
+
+            <button
+              onClick={sendMagicLink}
+              disabled={sending}
+              className="w-full rounded-2xl bg-white text-black px-4 py-3 font-semibold"
+            >
+              {sending ? "Invio..." : "📩 Invia Magic Link"}
+            </button>
+
+            {err && (
+              <div className="text-red-400 text-sm">❌ {err}</div>
+            )}
+
+            {msg && (
+              <div className="text-green-400 text-sm">✅ {msg}</div>
+            )}
+          </div>
+        </section>
+
+        {/* INFO */}
+        <div className="space-y-5">
+          <Card title="📜 Come funziona" icon="🔥">
+            <ul className="list-disc pl-5 space-y-1">
+              <li>💰 500 Dbr per la squadra</li>
+              <li>👥 1–6 membri</li>
+              <li>⚡ bonus & malus durante il batizado</li>
+              <li>🏆 vince chi fa più punti</li>
+            </ul>
+          </Card>
+
+          <Card title="🚨 Disclaimer" icon="😈">
+            <p>
+              Non è un gioco.
+              <br />
+              <b>È una questione di onore.</b>
+            </p>
+          </Card>
         </div>
       </div>
     </main>
