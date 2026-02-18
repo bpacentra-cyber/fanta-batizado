@@ -186,6 +186,13 @@ export default function LoginPage() {
               Inserisci la tua email → ricevi un <b>codice</b> → incollalo → sei dentro.
             </p>
 
+            <div className="mt-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-100">
+  ⚠️ <b>Se hai aggiunto l’app alla Home</b> (iPhone/Android), entra usando il <b>CODICE</b> qui sopra.
+  <br />
+  I magic link aperti dalla mail a volte loggano “fuori” dall’app e poi sembra che ti chieda il login ogni volta.
+</div>
+
+
             <div className="mt-5 space-y-3">
               <label className="block text-sm text-white/75">Email</label>
               <input
