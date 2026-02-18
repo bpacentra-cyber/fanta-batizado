@@ -178,7 +178,7 @@ export default function SquadrePage() {
                 Squadre
               </h1>
               <p className="text-white/70 leading-relaxed">
-                Qui vedi tutte le squadre create (con badge Admin / Founder sul caposquadra).
+                Qui vedi tutte le squadre create.
               </p>
             </div>
 

@@ -160,7 +160,7 @@ export default function ProfilePage() {
         </div>
 
         <p className="opacity-80 mb-6">
-          Qui sistemi il tuo profilo prima di buttarti nella roda 😄
+          Qui sistemi il tuo profilo prima di entrare in roda 😄
         </p>
 
         {msg && (
@@ -210,7 +210,7 @@ export default function ProfilePage() {
           <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
             <div className="font-bold mb-3">✍️ Il tuo nome</div>
 
-            <label className="block text-sm font-semibold mb-2">Nome (visibile in app)</label>
+            <label className="block text-sm font-semibold mb-2">Sarà il nome della tua squadra</label>
             <input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
