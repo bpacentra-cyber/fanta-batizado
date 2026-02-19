@@ -10,80 +10,50 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     let alive = true;
 
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-    async function finalize() {
+    async function run() {
       try {
-        const url = new URL(window.location.href);
-
-        // Supabase a volte manda error_description
-        const errorDesc =
-          url.searchParams.get("error_description") ||
-          url.searchParams.get("error") ||
-          "";
-
-        if (errorDesc) throw new Error(decodeURIComponent(errorDesc));
-
-        // ✅ PKCE: code in query
-        const code = url.searchParams.get("code");
-
-        // ✅ Fallback: token in hash (#access_token=...)
-        const hash = window.location.hash || "";
-        const hashParams = new URLSearchParams(hash.replace(/^#/, ""));
-        const access_token = hashParams.get("access_token");
-        const refresh_token = hashParams.get("refresh_token");
-
-        // Proviamo più volte: su iPhone/Android il passaggio Mail->App può abortire la fetch
-        const maxTries = 5;
-
-        for (let i = 0; i < maxTries; i++) {
-          try {
-            if (code) {
-              // ✅ IMPORTANTISSIMO: qui va passato SOLO il code
-              const { error } = await supabase.auth.exchangeCodeForSession(code);
-              if (error) throw error;
-            } else if (access_token && refresh_token) {
-              const { error } = await supabase.auth.setSession({
-                access_token,
-                refresh_token,
-              });
-              if (error) throw error;
-            }
-
-            const { data, error } = await supabase.auth.getSession();
-            if (error) throw error;
-
-            if (data.session) {
-              if (!alive) return;
-              setStatus("ok");
-              setMsg("✅ Login riuscito! Ti porto alla Home…");
-
-              // pulizia URL (evita loop e problemi su mobile)
-              window.history.replaceState({}, document.title, "/");
-
-              // vai alla home
-              window.location.replace("/");
-              return;
-            }
-
-            throw new Error("Sessione non creata (tentativo " + (i + 1) + ")");
-          } catch (e: any) {
-            const m = String(e?.message ?? e);
-
-            // Se è l’errore di abort, riprova
-            const isAbort =
-              m.toLowerCase().includes("signal is aborted") ||
-              m.toLowerCase().includes("abort") ||
-              m.toLowerCase().includes("aborted");
-
-            if (i < maxTries - 1 && isAbort) {
-              await sleep(350 + i * 250);
-              continue;
-            }
-
-            throw e;
-          }
+        // 1) Se Supabase ha già creato sessione (desktop/alcuni browser)
+        const { data: existing } = await supabase.auth.getSession();
+        if (existing.session?.user) {
+          if (!alive) return;
+          setStatus("ok");
+          setMsg("✅ Sei già loggato. Ti porto alla Home…");
+          window.history.replaceState({}, document.title, "/");
+          window.location.replace("/");
+          return;
         }
+
+        // 2) Leggi token dal fragment (#access_token=...)
+        const hash = window.location.hash || "";
+        const p = new URLSearchParams(hash.replace(/^#/, ""));
+        const access_token = p.get("access_token");
+        const refresh_token = p.get("refresh_token");
+
+        if (!access_token || !refresh_token) {
+          throw new Error(
+            "Token mancanti nel link. Apri il Magic Link in Safari/Chrome (non anteprima) e riprova."
+          );
+        }
+
+        const { error } = await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        });
+
+        if (error) throw error;
+
+        const { data } = await supabase.auth.getSession();
+        if (!data.session?.user) throw new Error("Sessione non creata.");
+
+        if (!alive) return;
+
+        setStatus("ok");
+        setMsg("✅ Login riuscito! Ti porto alla Home…");
+
+        // pulizia URL
+        window.history.replaceState({}, document.title, "/");
+
+        window.location.replace("/");
       } catch (e: any) {
         if (!alive) return;
         setStatus("err");
@@ -91,7 +61,7 @@ export default function AuthCallbackPage() {
       }
     }
 
-    finalize();
+    run();
     return () => {
       alive = false;
     };
@@ -100,9 +70,7 @@ export default function AuthCallbackPage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center px-6">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur">
-        <div className="text-2xl font-extrabold tracking-tight">
-          Auth callback
-        </div>
+        <div className="text-2xl font-extrabold tracking-tight">Auth callback</div>
 
         <div
           className={[
@@ -120,8 +88,7 @@ export default function AuthCallbackPage() {
 
         {status === "err" ? (
           <div className="mt-4 text-xs text-white/60">
-            Se l’errore persiste SOLO da mobile: apri il Magic Link in Safari/Chrome
-            (non dentro anteprime/in-app browser) e riprova.
+            Se ti apre il link dentro Gmail/WhatsApp: usa “Apri nel browser” (Safari/Chrome).
           </div>
         ) : null}
       </div>

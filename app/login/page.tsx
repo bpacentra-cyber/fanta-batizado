@@ -5,57 +5,21 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-white/85 backdrop-blur">
-      {children}
-    </span>
-  );
-}
-
-function Card({
-  title,
-  icon,
-  children,
-}: {
-  title: string;
-  icon: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-5 sm:p-6 shadow backdrop-blur">
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/30 text-xl">
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-xl font-extrabold">{title}</h2>
-          <div className="mt-2 text-white/80">{children}</div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export default function LoginPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
+  const [msg, setMsg] = useState<string>("");
+  const [err, setErr] = useState<string>("");
 
-  // Se già loggato → home
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
-
-      if (data.session?.user) {
-        router.replace("/");
-      }
+      if (data.session?.user) router.replace("/");
     })();
 
     return () => {
@@ -64,143 +28,96 @@ export default function LoginPage() {
   }, [router]);
 
   async function sendMagicLink() {
-  setErr("");
-  setMsg("");
+    setErr("");
+    setMsg("");
 
-  const e = email.trim();
-  if (!e || !e.includes("@")) {
-    setErr("Inserisci una mail valida 👀");
-    return;
+    const e = email.trim();
+    if (!e || !e.includes("@")) {
+      setErr("Inserisci una mail valida 👀");
+      return;
+    }
+
+    setSending(true);
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+
+      // ✅ STRATEGIA: token nel link (hash) + setSession in callback
+      const { error } = await supabase.auth.signInWithOtp({
+        email: e,
+        options: {
+          emailRedirectTo: redirectTo,
+        },
+      });
+
+      if (error) throw error;
+
+      setMsg(
+        "📩 Magic Link inviato! Apri la mail e clicca il link. Se sei su mobile: aprilo in Safari/Chrome (non anteprima)."
+      );
+      setEmail("");
+    } catch (e: any) {
+      setErr(e?.message ?? "Errore durante l’invio del Magic Link.");
+    } finally {
+      setSending(false);
+    }
   }
-
-  setSending(true);
-  try {
-    const base =
-      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-      window.location.origin;
-
-    const redirectTo = `${base}/auth/callback`;
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email: e,
-      options: {
-        emailRedirectTo: redirectTo,
-      },
-    });
-
-    if (error) throw error;
-
-    setMsg("📩 Magic Link inviato! Apri la mail e clicca il link.");
-    setEmail("");
-  } catch (e: any) {
-    setErr(e?.message ?? "Errore durante l’invio del Magic Link.");
-  } finally {
-    setSending(false);
-  }
-}
-
-
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
-      {/* HEADER */}
-      <div className="mx-auto max-w-5xl px-6 pt-10 pb-6 flex justify-between items-start">
-        <div>
-          <h1 className="text-4xl font-extrabold">🚪 Login</h1>
-          <p className="text-white/70 mt-2">
-            Entra nel <b>Fanta Batizado</b>
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Link
-            href="/"
-            className="rounded-2xl border border-white/15 px-4 py-2 text-sm"
-          >
-            ← Home
-          </Link>
-
-          <Link
-            href="/regolamento"
-            className="rounded-2xl bg-white text-black px-4 py-2 text-sm font-semibold"
-          >
-            📜 Regolamento
-          </Link>
-        </div>
-      </div>
-
-      {/* CONTENT */}
-      <div className="mx-auto max-w-5xl px-6 pb-14 grid grid-cols-1 lg:grid-cols-2 gap-5">
-        
-        {/* LOGIN */}
-        <section className="rounded-[28px] border border-white/10 bg-white/[0.06] p-6">
-          <h2 className="text-xl font-extrabold">🔐 Accesso</h2>
-
-          <p className="mt-2 text-white/70">
-            Inserisci la tua email e riceverai un link per entrare.
-          </p>
-
-          {/* ⚠️ AVVISO IMPORTANTE PER TUTTI */}
-          <div className="mt-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-100">
-            ⚠️ <b>IMPORTANTE</b>
-            <br />
-            Se apri il link dalla mail e poi esci dall'app, potrebbe chiederti di fare login di nuovo.
-            <br /><br />
-            👉 Per evitare questo:
-            <br />
-            1. Apri il link della mail  
-            <br />
-            2. Entra nell'app  
-            <br />
-            3. Poi usa sempre <b>lo stesso browser</b>  
-            <br /><br />
-            ⚡ Se aggiungi l’app alla Home, usa sempre quel browser.
-          </div>
-
-          <div className="mt-5 space-y-3">
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="nome@email.com"
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3"
-            />
-
-            <button
-              onClick={sendMagicLink}
-              disabled={sending}
-              className="w-full rounded-2xl bg-white text-black px-4 py-3 font-semibold"
+      <div className="mx-auto w-full max-w-xl px-6 py-10">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-3xl font-extrabold tracking-tight">🔐 Login</h1>
+          <div className="flex gap-2">
+            <Link
+              href="/"
+              className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
             >
-              {sending ? "Invio..." : "📩 Invia Magic Link"}
-            </button>
-
-            {err && (
-              <div className="text-red-400 text-sm">❌ {err}</div>
-            )}
-
-            {msg && (
-              <div className="text-green-400 text-sm">✅ {msg}</div>
-            )}
+              ← Home
+            </Link>
+            <Link
+              href="/regolamento"
+              className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90"
+            >
+              📜 Regolamento
+            </Link>
           </div>
-        </section>
+        </div>
 
-        {/* INFO */}
-        <div className="space-y-5">
-          <Card title="📜 Come funziona" icon="🔥">
-            <ul className="list-disc pl-5 space-y-1">
-              <li>💰 500 Dbr per la squadra</li>
-              <li>👥 1–6 membri</li>
-              <li>⚡ bonus & malus durante il batizado</li>
-              <li>🏆 vince chi fa più punti</li>
-            </ul>
-          </Card>
+        <div className="mt-6 rounded-[28px] border border-white/10 bg-white/[0.06] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur">
+          <label className="block text-sm text-white/75">Email</label>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="nome@esempio.com"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-white/20"
+            autoComplete="email"
+            inputMode="email"
+          />
 
-          <Card title="🚨 Disclaimer" icon="😈">
-            <p>
-              <b>Prima regola del Fanta Batizado:</b> NON parlare mai del Fanta Batizado
-              <br />
-              <b>Seconda regola del Fanta Batizado:</b> ricordati la prima!
-            </p>
-          </Card>
+          <button
+            onClick={sendMagicLink}
+            disabled={sending}
+            className="mt-4 w-full rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90 disabled:opacity-60"
+          >
+            {sending ? "Invio in corso…" : "📩 Invia Magic Link"}
+          </button>
+
+          {err ? (
+            <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+              ❌ {err}
+            </div>
+          ) : null}
+
+          {msg ? (
+            <div className="mt-4 rounded-2xl border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-100">
+              ✅ {msg}
+            </div>
+          ) : null}
+
+          <div className="mt-4 text-xs text-white/55 leading-relaxed">
+            Su iPhone/Android: se il link si apre “dentro” Gmail/WhatsApp e non va,
+            apri la mail in Safari/Chrome e riprova.
+          </div>
         </div>
       </div>
     </main>
