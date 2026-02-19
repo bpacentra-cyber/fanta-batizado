@@ -5,56 +5,85 @@ import { supabase } from "@/lib/supabase";
 
 export default function AuthCallbackPage() {
   const [status, setStatus] = useState<"loading" | "ok" | "err">("loading");
-  const [msg, setMsg] = useState<string>("Accesso in corso…");
+  const [msg, setMsg] = useState("Accesso in corso…");
 
   useEffect(() => {
     let alive = true;
 
-    async function run() {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    async function finalize() {
       try {
-        // 1) Caso PKCE: arriva ?code=...
-        const url = window.location.href;
-        const hasCode = new URL(url).searchParams.get("code");
+        const url = new URL(window.location.href);
 
-        if (hasCode) {
-          const { error } = await supabase.auth.exchangeCodeForSession(url);
-          if (error) throw error;
-        } else {
-          // 2) Caso hash: #access_token=... (fallback)
-          const hash = window.location.hash || "";
-          const params = new URLSearchParams(hash.replace(/^#/, ""));
-          const access_token = params.get("access_token");
-          const refresh_token = params.get("refresh_token");
+        // Supabase a volte manda error_description
+        const errorDesc =
+          url.searchParams.get("error_description") ||
+          url.searchParams.get("error") ||
+          "";
 
-          if (access_token && refresh_token) {
-            const { error } = await supabase.auth.setSession({
-              access_token,
-              refresh_token,
-            });
+        if (errorDesc) throw new Error(decodeURIComponent(errorDesc));
+
+        // ✅ PKCE: code in query
+        const code = url.searchParams.get("code");
+
+        // ✅ Fallback: token in hash (#access_token=...)
+        const hash = window.location.hash || "";
+        const hashParams = new URLSearchParams(hash.replace(/^#/, ""));
+        const access_token = hashParams.get("access_token");
+        const refresh_token = hashParams.get("refresh_token");
+
+        // Proviamo più volte: su iPhone/Android il passaggio Mail->App può abortire la fetch
+        const maxTries = 5;
+
+        for (let i = 0; i < maxTries; i++) {
+          try {
+            if (code) {
+              // ✅ IMPORTANTISSIMO: qui va passato SOLO il code
+              const { error } = await supabase.auth.exchangeCodeForSession(code);
+              if (error) throw error;
+            } else if (access_token && refresh_token) {
+              const { error } = await supabase.auth.setSession({
+                access_token,
+                refresh_token,
+              });
+              if (error) throw error;
+            }
+
+            const { data, error } = await supabase.auth.getSession();
             if (error) throw error;
+
+            if (data.session) {
+              if (!alive) return;
+              setStatus("ok");
+              setMsg("✅ Login riuscito! Ti porto alla Home…");
+
+              // pulizia URL (evita loop e problemi su mobile)
+              window.history.replaceState({}, document.title, "/");
+
+              // vai alla home
+              window.location.replace("/");
+              return;
+            }
+
+            throw new Error("Sessione non creata (tentativo " + (i + 1) + ")");
+          } catch (e: any) {
+            const m = String(e?.message ?? e);
+
+            // Se è l’errore di abort, riprova
+            const isAbort =
+              m.toLowerCase().includes("signal is aborted") ||
+              m.toLowerCase().includes("abort") ||
+              m.toLowerCase().includes("aborted");
+
+            if (i < maxTries - 1 && isAbort) {
+              await sleep(350 + i * 250);
+              continue;
+            }
+
+            throw e;
           }
         }
-
-        // 3) Verifica sessione finale
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-
-        if (!data.session) {
-          throw new Error(
-            "Sessione non creata. Quasi sempre è un redirect su dominio diverso (controlla NEXT_PUBLIC_SITE_URL e Redirect URLs in Supabase)."
-          );
-        }
-
-        if (!alive) return;
-
-        setStatus("ok");
-        setMsg("✅ Login riuscito! Ti porto alla Home…");
-
-        // IMPORTANTISSIMO: pulisce l’URL (code/hash) e evita loop/abort
-        window.history.replaceState({}, document.title, "/");
-
-        // Redirect (usa replace per non tornare alla callback)
-        window.location.replace("/");
       } catch (e: any) {
         if (!alive) return;
         setStatus("err");
@@ -62,7 +91,7 @@ export default function AuthCallbackPage() {
       }
     }
 
-    run();
+    finalize();
     return () => {
       alive = false;
     };
@@ -91,9 +120,8 @@ export default function AuthCallbackPage() {
 
         {status === "err" ? (
           <div className="mt-4 text-xs text-white/60">
-            Tip: assicurati che il link del Magic Link punti al dominio production
-            (NEXT_PUBLIC_SITE_URL) e che Supabase abbia il redirect /auth/callback
-            autorizzato.
+            Se l’errore persiste SOLO da mobile: apri il Magic Link in Safari/Chrome
+            (non dentro anteprime/in-app browser) e riprova.
           </div>
         ) : null}
       </div>
