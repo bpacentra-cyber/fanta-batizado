@@ -162,6 +162,21 @@ function Tile({
 }
 
 export default function HomePage() {
+  const [user, setUser] = useState<any>(null);
+
+useEffect(() => {
+  supabase.auth.getUser().then(({ data }) => {
+    setUser(data.user);
+  });
+}, []);
+
+if (user === null) return null;
+
+if (!user) {
+  window.location.href = "/login";
+  return null;
+}
+
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
       <TopLeftNav />
