@@ -64,37 +64,41 @@ export default function LoginPage() {
   }, [router]);
 
   async function sendMagicLink() {
-    setErr("");
-    setMsg("");
+  setErr("");
+  setMsg("");
 
-    if (!email.includes("@")) {
-      setErr("Inserisci una mail valida 👀");
-      return;
-    }
+  const e = email.trim();
+  if (!e || !e.includes("@")) {
+    setErr("Inserisci una mail valida 👀");
+    return;
+  }
 
-    setSending(true);
+  setSending(true);
+  try {
+    const base =
+      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+      window.location.origin;
 
-    try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = `${base}/auth/callback`;
 
-const { error } = await supabase.auth.signInWithOtp({
-  email,
-  options: {
-    emailRedirectTo: redirectTo,
-  },
-});
+    const { error } = await supabase.auth.signInWithOtp({
+      email: e,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
+    });
 
+    if (error) throw error;
 
-      if (error) throw error;
-
-      setMsg("📩 Controlla la mail e clicca il link!");
-      setEmail("");
-    } catch (e: any) {
-      setErr(e.message);
-    }
-
+    setMsg("📩 Magic Link inviato! Apri la mail e clicca il link.");
+    setEmail("");
+  } catch (e: any) {
+    setErr(e?.message ?? "Errore durante l’invio del Magic Link.");
+  } finally {
     setSending(false);
   }
+}
+
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
